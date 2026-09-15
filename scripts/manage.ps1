@@ -1,4 +1,5 @@
-param([Parameter(Mandatory=$true)][string]$RequestFile)
+param([Parameter(Mandatory=$true)][string]$RequestFile,
+ [string]$ProgramsDirectory=[Environment]::GetFolderPath('Programs'))
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -25,6 +26,28 @@ function RemoveOwned([string]$path){
   if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Refusing to recursively remove a directory containing links'}
  }
  Remove-Item -LiteralPath $full -Recurse -Force
+}
+function TcoShortcut([bool]$remove=$false){
+ # Shortcut failures must not invalidate an otherwise completed installation.
+ try{
+  $folder=Join-Path $ProgramsDirectory 'NimbyRails France Hub'
+  $name=if($project.id -eq 'tco'){'Nimby TCO.lnk'}else{"Nimby TCO ($($project.id)).lnk"}
+  $path=Join-Path $folder $name
+  $target=Join-Path $destination 'NimbyTco.exe'
+  $shell=New-Object -ComObject WScript.Shell
+  if(Test-Path -LiteralPath $path){
+   $existing=$shell.CreateShortcut($path)
+   if($existing.TargetPath -ine $target){throw 'Shortcut belongs to another installation'}
+  }
+  if($remove){if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path};return}
+  New-Item -ItemType Directory -Force -Path $folder | Out-Null
+  $shortcut=$shell.CreateShortcut($path)
+  $shortcut.TargetPath=$target
+  $shortcut.WorkingDirectory=$destination
+  $shortcut.IconLocation="$target,0"
+  $shortcut.Description='Nimby TCO'
+  $shortcut.Save()
+ }catch{Write-Warning "Start menu shortcut: $($_.Exception.Message)"}
 }
 function Closed {
  $gameExe=[IO.Path]::GetFullPath((Join-Path $request.gameDirectory 'NIMBYRails.exe'))
@@ -60,6 +83,7 @@ if($request.action -eq 'remove'){
  if($old.kind -eq 'native-mod'){LinkMod '' $old}
  RemoveOwned $destination
  if(Test-Path -LiteralPath $previous){RemoveOwned $previous}
+ if($old.kind -eq 'tco'){TcoShortcut $true}
  '{}' | Set-Content -LiteralPath $request.resultFile -Encoding UTF8
  Write-Output 'Uninstalled';exit 0
 }
@@ -79,6 +103,7 @@ if($request.action -eq 'rollback'){
   throw
  }
  Move-Item -LiteralPath $swap -Destination $previous
+ if($prior.kind -eq 'tco'){TcoShortcut}
  Get-Content -LiteralPath "$destination/.nrf-project.json" -Raw | Set-Content -LiteralPath $request.resultFile -Encoding UTF8
  Write-Output 'Previous version restored';exit 0
 }
@@ -143,4 +168,5 @@ try{
  if($proxyRemoved){Proxy $destination 'Install'}
  throw
 }
+if($project.kind -eq 'tco'){TcoShortcut}
 Write-Output 'Installed. Previous version retained for rollback.'

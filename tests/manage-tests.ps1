@@ -16,23 +16,34 @@ $req=@{action='install';project=$p;archive=$zip;destination="$root/installed";ga
 function Run([bool]$success){
  $req | ConvertTo-Json -Depth 8 | Set-Content "$root/request.json" -Encoding UTF8
  $ErrorActionPreference='Continue'
- & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/../scripts/manage.ps1" -RequestFile "$root/request.json" *> "$root/last-run.log"
+ & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/../scripts/manage.ps1" -RequestFile "$root/request.json" -ProgramsDirectory "$root/programs" *> "$root/last-run.log"
  $ErrorActionPreference='Stop'
  if(($LASTEXITCODE -eq 0) -ne $success){Get-Content "$root/last-run.log";throw 'Unexpected operation result'}
 }
 Run $true
+$shortcutPath="$root/programs/NimbyRails France Hub/Nimby TCO (fixture).lnk"
+function CheckShortcut {
+ if(!(Test-Path -LiteralPath $shortcutPath)){throw 'Start menu shortcut missing'}
+ $link=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
+ if($link.TargetPath -ne [IO.Path]::GetFullPath("$root/installed/NimbyTco.exe") -or $link.WorkingDirectory -ne [IO.Path]::GetFullPath("$root/installed")){throw 'Incorrect shortcut target or working directory'}
+}
+CheckShortcut
 if([IO.File]::ReadAllText("$root/installed/NimbyTco.exe") -ne 'version one'){throw 'Install failed'}
 [IO.File]::WriteAllText("$root/package/Fixture/NimbyTco.exe",'version two')
 $zip=Archive;$req.archive=$zip;$p.version='1.1.0';$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
 Run $true
 if([IO.File]::ReadAllText("$root/installed/NimbyTco.exe") -ne 'version two'){throw 'Update failed'}
+CheckShortcut
+Remove-Item -LiteralPath $shortcutPath
 $req.action='rollback';Run $true
 if([IO.File]::ReadAllText("$root/installed/NimbyTco.exe") -ne 'version one'){throw 'Rollback failed'}
+CheckShortcut
 $req.action='install';$p.sha256='0'*64;Run $false
 if([IO.File]::ReadAllText("$root/installed/NimbyTco.exe") -ne 'version one'){throw 'Bad hash changed installation'}
 $p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$req.expectedGameHash='0'*64;Run $false;$req.expectedGameHash=$gameHash
 $req.action='remove';Run $true
 if(Test-Path "$root/installed"){throw 'Uninstall failed'}
+if(Test-Path -LiteralPath $shortcutPath){throw 'Start menu shortcut remains after uninstall'}
 New-Item -ItemType Directory "$root/installed" | Out-Null
 $req.action='install';Run $false
 Write-Output 'PASS: install, update, rollback, invalid hash, incompatible game, uninstall, foreign directory protection'

@@ -16,7 +16,7 @@ Copy-Item -LiteralPath "$QtTools/mingw1310_64/licenses" -Destination "$stage/lic
 New-Item -ItemType Directory -Force -Path "$PSScriptRoot/dist" | Out-Null
 & $Iscc "/DStage=$stage" "/DOutput=$PSScriptRoot/dist" "$PSScriptRoot/installer.iss"
 if($LASTEXITCODE){throw 'Installer failed'}
-$exe=Get-Item "$PSScriptRoot/dist/NRFHub-0.2.1-Setup.exe"
+$exe=Get-Item "$PSScriptRoot/dist/NRFHub-0.2.2-Setup.exe"
 $hash=(Get-FileHash -LiteralPath $exe.FullName).Hash.ToLowerInvariant()
-@{schema=1;product='NRFHub';platform='windows-x64';version='0.2.1';url='https://github.com/NimbyRails-France/hub/releases/download/v0.2.1/NRFHub-0.2.1-Setup.exe';sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
+@{schema=1;product='NRFHub';platform='windows-x64';version='0.2.2';url='https://github.com/NimbyRails-France/hub/releases/download/v0.2.2/NRFHub-0.2.2-Setup.exe';sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
 "$hash  $($exe.Name)" | Set-Content "$PSScriptRoot/dist/SHA256SUMS.txt" -Encoding ascii
