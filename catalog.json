@@ -1,42 +1,42 @@
 {
-    "projects":  [
-                     {
-                         "url":  "https://github.com/NimbyRails-France/sdk/releases/download/v0.6.0/NimbyRailsSDK-0.6.0-hub.zip",
-                         "id":  "sdk",
-                         "kind":  "sdk",
-                         "size":  10327478,
-                         "version":  "0.6.0",
-                         "rootFolder":  "NimbyRailsSDK-0.6.0",
-                         "name":  "NimbyRails SDK + NRF Loader",
-                         "sha256":  "0413f13e6bd2bc8dcf3e0a12cf33a62537faa0aeff13a4b9ca68acdb6c864c11",
-                         "gameSha256":  [
-                                            "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
-                                        ]
-                     },
-                     {
-                         "url":  "https://github.com/NimbyRails-France/tco/releases/download/v0.4.0/NimbyTco-0.4.0-windows-x64.zip",
-                         "id":  "tco",
-                         "kind":  "tco",
-                         "size":  55472761,
-                         "version":  "0.4.0",
-                         "rootFolder":  "NimbyTco-0.4.0",
-                         "sdkMin":  "0.6.0",
-                         "name":  "Nimby TCO",
-                         "sha256":  "2d876b836486022e035525158ddac873c50fad1292c2d32ffcc207d1e7d17cd5",
-                         "sdkMaxExclusive":  "0.7.0",
-                         "gameSha256":  [
-                                            "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
-                                        ]
-                     }
-                 ],
-    "hub":  {
-                "version":  "0.2.2",
-                "schema":  1,
-                "sha256":  "2edf5d235da71245e95bc1e610b210b9789f427c86bf99e52a76e2c0b23a660e",
-                "product":  "NRFHub",
-                "platform":  "windows-x64",
-                "url":  "https://github.com/NimbyRails-France/hub/releases/download/v0.2.2/NRFHub-0.2.2-Setup.exe",
-                "size":  23613142
-            },
-    "schema":  1
+  "projects": [
+    {
+      "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.6.0/NimbyRailsSDK-0.6.0-hub.zip",
+      "id": "sdk",
+      "kind": "sdk",
+      "size": 10327478,
+      "version": "0.6.0",
+      "rootFolder": "NimbyRailsSDK-0.6.0",
+      "name": "NimbyRails SDK + NRF Loader",
+      "sha256": "0413f13e6bd2bc8dcf3e0a12cf33a62537faa0aeff13a4b9ca68acdb6c864c11",
+      "gameSha256": [
+        "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
+      ]
+    },
+    {
+      "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.4.0/NimbyTco-0.4.0-windows-x64.zip",
+      "id": "tco",
+      "kind": "tco",
+      "size": 55472761,
+      "version": "0.4.0",
+      "rootFolder": "NimbyTco-0.4.0",
+      "sdkMin": "0.6.0",
+      "name": "Nimby TCO",
+      "sha256": "2d876b836486022e035525158ddac873c50fad1292c2d32ffcc207d1e7d17cd5",
+      "sdkMaxExclusive": "0.7.0",
+      "gameSha256": [
+        "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
+      ]
+    }
+  ],
+  "hub": {
+    "version": "0.2.2",
+    "schema": 1,
+    "sha256": "2edf5d235da71245e95bc1e610b210b9789f427c86bf99e52a76e2c0b23a660e",
+    "product": "NRFHub",
+    "platform": "windows-x64",
+    "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.2.2/NRFHub-0.2.2-Setup.exe",
+    "size": 23613142
+  },
+  "schema": 1
 }
