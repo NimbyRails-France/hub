@@ -1,2 +1,68 @@
-# hub
-NimbyRails France Hub - installation, compatibilite et mises a jour des projets NRF
+# NimbyRails France Hub
+
+Gestionnaire Windows x64 des projets **NimbyRails-France** : SDK, TCO et mods
+natifs publiés dans le catalogue. Version initiale 0.1.0.
+
+## Installer
+
+Télécharger `NRFHub-0.1.0-Setup.exe` dans les
+[releases](https://github.com/NimbyRails-France/hub/releases).
+Choisir le dossier contenant `NIMBYRails.exe`, puis installer le SDK avant le TCO.
+Le bouton d'installation demande le dossier parent de chaque projet.
+
+- **SDK** : kit de développement et chargeur SDL installés ensemble ; le chargeur
+  est placé dans le dossier du jeu et la SDL originale est sauvegardée.
+- **TCO** : inclut sa propre DLL SDK compatible ; vérifie sa version et son ABI
+  au démarrage. Les installations gérées par le Hub désactivent l'updater autonome du TCO.
+- **Mods natifs** : installés dans le dossier choisi, avec une jonction depuis
+  le dossier de mods du jeu. NIMBY Rails charge ces mods ; le SDK n'est pas un
+  chargeur de DLL arbitraires. Aucun mod fictif n'est présenté comme publié.
+
+Une ancienne installation du SDK effectuée hors du Hub doit être retirée avec
+son installateur original avant la première installation gérée. Le Hub ne
+s'approprie pas un dossier existant. Fermer le jeu et le TCO avant installation.
+
+## Mises à jour automatiques
+
+Le catalogue public `catalog.json` référence les assets des releases des
+dépôts [sdk](https://github.com/NimbyRails-France/sdk),
+[tco](https://github.com/NimbyRails-France/tco) et de ce dépôt.
+Le Hub consulte le catalogue au démarrage puis toutes les 15 minutes.
+Les projets installés sont mis à jour automatiquement lorsque le jeu et le TCO
+sont fermés et que les dépendances sont compatibles. Le Hub doit être ouvert ;
+aucun service caché ni démarrage automatique Windows n'est installé.
+
+Chaque téléchargement est vérifié par taille et SHA-256, puis extrait dans un
+dossier de préparation. Les chemins sortant de l'archive et les liens sont rejetés.
+La version précédente reste disponible avec « Revenir à la version précédente ».
+Ce retour suspend les mises à jour automatiques pour éviter de réinstaller la
+version annulée. Les réglages du Hub sont conservés dans les données locales utilisateur.
+Les fichiers de distribution d'un projet sont remplacés ; garder les données
+personnelles hors de ces dossiers ou dans les emplacements prévus par le projet.
+
+Le Hub lui-même utilise `hub-latest.json` : téléchargement automatique, contrôle
+d'intégrité, installation à sa fermeture, ou bouton de redémarrage immédiat.
+La confiance repose sur HTTPS et les dépôts de l'organisation. Les exécutables
+ne sont pas signés avec un certificat Authenticode de publication.
+
+La compatibilité du jeu est validée sur son SHA-256, plus strict qu'un simple
+numéro de version. Un binaire inconnu bloque l'installation ; cela ne signifie
+pas que toutes les fonctions du jeu sont exposées par le SDK expérimental.
+
+## Développement
+
+Qt 6.11.2, MinGW x64 et CMake. `build.ps1` construit et déploie les dépendances Qt.
+`package.ps1 -Iscc <chemin>` produit l'installateur Inno Setup et son manifeste.
+`ctest --test-dir build --output-on-failure` et
+`powershell -File tests/manage-tests.ps1` exécutent les validations.
+Les tests du gestionnaire utilisent un faux jeu et des archives temporaires.
+
+## Publication
+
+Publier les assets SDK et TCO dans leurs nouvelles releases, puis modifier
+`catalog.json` avec leurs URL, versions, tailles et empreintes exactes.
+Ne pas remplacer un asset d'une ancienne version. Publier le manifeste de
+chaque updater en dernier. Voir `docs/catalogue.md` pour le format des projets.
+
+Les sources sont publiques. Aucune licence générale du projet n'est accordée
+par ce fichier ; les bibliothèques tierces conservent leurs licences respectives.
