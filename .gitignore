@@ -2,3 +2,7 @@
 /dist/
 /.idea/
 *.user
+
+/install/
+/CMakeUserPresets.json
+*.log

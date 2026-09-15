@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Iscc,[string]$QtRoot='C:/Qt/6.11.2/mingw_64',[string]$QtTools='C:/Qt/Tools',[string]$QtLicenseRoot='C:/Qt/Licenses')
+param([string]$Iscc="$env:LOCALAPPDATA/Programs/InnoSetup/ISCC.exe",[string]$QtRoot='C:/Qt/6.11.2/mingw_64',[string]$QtTools='C:/Qt/Tools',[string]$QtLicenseRoot='C:/Qt/Licenses')
 $ErrorActionPreference='Stop'
 & "$PSScriptRoot/build.ps1" -QtRoot $QtRoot -QtTools $QtTools
 $stage=Join-Path $PSScriptRoot ('build/package-'+[guid]::NewGuid().ToString('N'))

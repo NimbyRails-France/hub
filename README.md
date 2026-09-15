@@ -72,3 +72,7 @@ chaque updater en dernier. Voir `docs/catalogue.md` pour le format des projets.
 
 Les sources sont publiques. Aucune licence générale du projet n'est accordée
 par ce fichier ; les bibliothèques tierces conservent leurs licences respectives.
+
+## Projet CLion indépendant
+
+Profils Debug/Release et configurations Run/Debug : [guide CLion](docs/clion.md).

@@ -6,6 +6,13 @@ qt_add_executable(NRFHub WIN32 src/main.cpp src/hub.cpp src/hub-desktop.cpp src/
 target_compile_features(NRFHub PRIVATE cxx_std_20)
 target_compile_definitions(NRFHub PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX HUB_VERSION="${PROJECT_VERSION}")
 target_link_libraries(NRFHub PRIVATE Qt6::Widgets Qt6::Network)
+option(NRF_DEPLOY_QT "Deploy the Qt runtime for local Run/Debug" ON)
+if(WIN32 AND NRF_DEPLOY_QT)
+    find_program(NRF_WINDEPLOYQT windeployqt HINTS "${Qt6_DIR}/../../../bin" REQUIRED)
+    add_custom_command(TARGET NRFHub POST_BUILD
+        COMMAND "${NRF_WINDEPLOYQT}" --release --no-translations "$<TARGET_FILE:NRFHub>"
+        VERBATIM)
+endif()
 add_custom_command(TARGET NRFHub POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/scripts" "$<TARGET_FILE_DIR:NRFHub>/scripts")
 enable_testing()
 add_test(NAME hub_self_test COMMAND NRFHub --self-test)
