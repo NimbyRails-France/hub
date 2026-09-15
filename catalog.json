@@ -30,13 +30,13 @@
                      }
                  ],
     "hub":  {
-                "version":  "0.2.0",
+                "version":  "0.2.1",
                 "schema":  1,
-                "sha256":  "98d8687a509ac976acf6f54b9b03e697a696a12fc7689fc5220a14ca959118fd",
+                "sha256":  "9ad1e3f8d4cdb16d5514847cb977ad21d43d98f6d4c0f77952fa496019f3f5f6",
                 "product":  "NRFHub",
                 "platform":  "windows-x64",
-                "url":  "https://github.com/NimbyRails-France/hub/releases/download/v0.2.0/NRFHub-0.2.0-Setup.exe",
-                "size":  23660615
+                "url":  "https://github.com/NimbyRails-France/hub/releases/download/v0.2.1/NRFHub-0.2.1-Setup.exe",
+                "size":  23664683
             },
     "schema":  1
 }

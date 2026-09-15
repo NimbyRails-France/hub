@@ -8,6 +8,7 @@
 #include <QNetworkReply>
 #include <QJsonDocument>
 #include <QVersionNumber>
+#include <QDateTime>
 #include <memory>
 #include <cstdio>
 
@@ -97,7 +98,7 @@ void Hub::refreshReleases(int index){
  const QStringList ids{"sdk","tco"};
  if(index>=ids.size()){setBusy(false);detectGame();render();notifyUpdates();checkUpdates();return;}
  setBusy(true);const auto id=ids[index];
- QNetworkRequest request{QUrl("https://github.com/NimbyRails-France/"+id+"/releases/latest/download/project.json")};
+ QNetworkRequest request{QUrl("https://github.com/NimbyRails-France/"+id+"/releases/latest/download/project.json?check="+QString::number(QDateTime::currentMSecsSinceEpoch()))};
  request.setTransferTimeout(30000);request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::NoLessSafeRedirectPolicy);
  auto* reply=network_.get(request);auto bytes=std::make_shared<QByteArray>();
  connect(reply,&QIODevice::readyRead,this,[reply,bytes]{*bytes+=reply->readAll();if(bytes->size()>65536)reply->abort();});

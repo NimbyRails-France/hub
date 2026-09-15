@@ -12,6 +12,8 @@
 #include <QTimer>
 #include <QUuid>
 #include <QVersionNumber>
+#include <QDateTime>
+#include <QUrlQuery>
 #include <memory>
 namespace {
 bool https(const QUrl& url){return url.isValid()&&url.scheme()=="https"&&!url.host().isEmpty()&&url.userInfo().isEmpty();}
@@ -35,7 +37,8 @@ Updater::Updater(QObject* parent):QObject(parent){
 }
 void Updater::check(){
  if(!enabled_||busy_||ready())return;if(!https(feed_)){message("Mises à jour : serveur non configuré");return;}
- busy_=true;message("Recherche de mise à jour…");auto* reply=network_.get(request(feed_));
+ auto url=feed_;QUrlQuery query(url);query.addQueryItem("check",QString::number(QDateTime::currentMSecsSinceEpoch()));url.setQuery(query);
+ busy_=true;message("Recherche de mise à jour…");auto* reply=network_.get(request(url));
  auto bytes=std::make_shared<QByteArray>();
  connect(reply,&QIODevice::readyRead,this,[reply,bytes]{*bytes+=reply->readAll();if(bytes->size()>65536)reply->abort();});
  connect(reply,&QNetworkReply::finished,this,[this,reply,bytes]{
@@ -43,8 +46,8 @@ void Updater::check(){
   if(!ok){message("Serveur de mises à jour indisponible");return;}
   const auto doc=QJsonDocument::fromJson(*bytes);UpdateRelease release;
   if(!doc.isObject()){message("Manifest de mise à jour invalide");return;}
-  if(!parseRelease(doc.object(),QCoreApplication::applicationVersion(),release)){
-   message(doc.object()["version"].toString()==QCoreApplication::applicationVersion()?"Hub à jour":"Mise à jour incompatible ou invalide");return;}
+  if(!parseRelease(doc.object(),"0.0.0",release)){message("Mise à jour incompatible ou invalide");return;}
+  if(QVersionNumber::fromString(release.version)<=QVersionNumber::fromString(QCoreApplication::applicationVersion())){message("Hub à jour");return;}
   download(release);
  });
 }

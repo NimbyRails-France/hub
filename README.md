@@ -1,11 +1,11 @@
 # NimbyRails France Hub
 
 Gestionnaire Windows x64 des projets **NimbyRails-France** : SDK, TCO et mods
-natifs publiés dans le catalogue. Version 0.2.0.
+natifs publiés dans le catalogue. Version 0.2.1.
 
 ## Installer
 
-Télécharger `NRFHub-0.2.0-Setup.exe` dans les
+Télécharger `NRFHub-0.2.1-Setup.exe` dans les
 [releases](https://github.com/NimbyRails-France/hub/releases).
 Choisir le dossier contenant `NIMBYRails.exe`, puis installer le SDK avant le TCO.
 Le bouton d'installation demande le dossier parent de chaque projet.
