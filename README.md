@@ -1,11 +1,11 @@
 # NimbyRails France Hub
 
 Gestionnaire Windows x64 des projets **NimbyRails-France** : SDK, TCO et mods
-natifs publiés dans le catalogue. Version initiale 0.1.0.
+natifs publiés dans le catalogue. Version 0.2.0.
 
 ## Installer
 
-Télécharger `NRFHub-0.1.0-Setup.exe` dans les
+Télécharger `NRFHub-0.2.0-Setup.exe` dans les
 [releases](https://github.com/NimbyRails-France/hub/releases).
 Choisir le dossier contenant `NIMBYRails.exe`, puis installer le SDK avant le TCO.
 Le bouton d'installation demande le dossier parent de chaque projet.
@@ -27,9 +27,9 @@ s'approprie pas un dossier existant. Fermer le jeu et le TCO avant installation.
 Le catalogue public `catalog.json` référence les assets des releases des
 dépôts [sdk](https://github.com/NimbyRails-France/sdk),
 [tco](https://github.com/NimbyRails-France/tco) et de ce dépôt.
-Le Hub consulte le catalogue au démarrage puis toutes les 15 minutes.
+Le Hub reçoit les événements des releases par webhook GitHub via ntfy, puis vérifie les manifestes officiels. Il consulte aussi le catalogue au démarrage et toutes les 15 minutes.
 Les projets installés sont mis à jour automatiquement lorsque le jeu et le TCO
-sont fermés et que les dépendances sont compatibles. Le Hub doit être ouvert ;
+sont fermés et que les dépendances sont compatibles. Le Hub doit être lancé, éventuellement masqué dans la zone de notification ;
 aucun service caché ni démarrage automatique Windows n'est installé.
 
 Chaque téléchargement est vérifié par taille et SHA-256, puis extrait dans un
@@ -41,13 +41,19 @@ Les fichiers de distribution d'un projet sont remplacés ; garder les données
 personnelles hors de ces dossiers ou dans les emplacements prévus par le projet.
 
 Le Hub lui-même utilise `hub-latest.json` : téléchargement automatique, contrôle
-d'intégrité, installation à sa fermeture, ou bouton de redémarrage immédiat.
+d'intégrité, installation lorsque vous choisissez Quitter, ou bouton de redémarrage immédiat.
 La confiance repose sur HTTPS et les dépôts de l'organisation. Les exécutables
 ne sont pas signés avec un certificat Authenticode de publication.
 
 La compatibilité du jeu est validée sur son SHA-256, plus strict qu'un simple
 numéro de version. Un binaire inconnu bloque l'installation ; cela ne signifie
 pas que toutes les fonctions du jeu sont exposées par le SDK expérimental.
+
+## Fenêtre et notifications
+
+La croix masque le Hub dans la zone de notification. Son icône permet de restaurer la fenêtre ou de quitter complètement. Le bouton Réduire fonctionne normalement. **F11** bascule en plein écran ; **Échap** revient en fenêtre. Les nouvelles versions et les opérations terminées déclenchent une notification Windows.
+
+Voir [le fonctionnement du relais et les tests](docs/notifications.md).
 
 ## Développement
 

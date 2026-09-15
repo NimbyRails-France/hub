@@ -44,7 +44,7 @@ void Updater::check(){
   const auto doc=QJsonDocument::fromJson(*bytes);UpdateRelease release;
   if(!doc.isObject()){message("Manifest de mise à jour invalide");return;}
   if(!parseRelease(doc.object(),QCoreApplication::applicationVersion(),release)){
-   message(doc.object()["version"].toString()==QCoreApplication::applicationVersion()?"Hub et SDK à jour":"Mise à jour incompatible ou invalide");return;}
+   message(doc.object()["version"].toString()==QCoreApplication::applicationVersion()?"Hub à jour":"Mise à jour incompatible ou invalide");return;}
   download(release);
  });
 }
@@ -54,7 +54,7 @@ void Updater::download(const UpdateRelease& release){
  const QString path=dir+"/setup-"+QUuid::createUuid().toString(QUuid::WithoutBraces)+".exe";
  auto file=std::make_shared<QSaveFile>(path);if(!file->open(QIODevice::WriteOnly)){message("Impossible de préparer la mise à jour");return;}
  auto hash=std::make_shared<QCryptographicHash>(QCryptographicHash::Sha256);auto size=std::make_shared<qint64>(0);
- busy_=true;message("Téléchargement du Hub et du SDK…");auto* reply=network_.get(request(release.url));
+ busy_=true;message("Téléchargement du Hub…");auto* reply=network_.get(request(release.url));
  connect(reply,&QIODevice::readyRead,this,[reply,file,hash,size,release]{
   const auto chunk=reply->readAll();*size+=chunk.size();
   if(*size>release.size||file->write(chunk)!=chunk.size()){reply->abort();return;}hash->addData(chunk);
@@ -63,7 +63,7 @@ void Updater::download(const UpdateRelease& release){
   const bool ok=reply->error()==QNetworkReply::NoError&&https(reply->url())&&*size==release.size&&hash->result().toHex()==release.hash;
   reply->deleteLater();busy_=false;
   if(!ok||!file->commit()){file->cancelWriting();message("Mise à jour rejetée : téléchargement incomplet ou empreinte incorrecte");return;}
-  installer_=path;expectedHash_=release.hash;message("Mise à jour prête · installation à la fermeture");
+  installer_=path;expectedHash_=release.hash;message("Mise à jour prête · cliquez sur Redémarrer le Hub");
  });
 }
 void Updater::restart(){if(ready()){relaunch_=true;QCoreApplication::quit();}}
