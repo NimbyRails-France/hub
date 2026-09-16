@@ -1,32 +1,32 @@
 {
   "projects": [
     {
-      "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.7.0/NimbyRailsFranceSDK-0.7.0-hub.zip",
+      "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.7.1/NimbyRailsFranceSDK-0.7.1-hub.zip",
       "id": "sdk",
       "kind": "sdk",
-      "size": 10253689,
-      "version": "0.7.0",
-      "rootFolder": "NimbyRailsFranceSDK-0.7.0",
+      "size": 10517570,
+      "version": "0.7.1",
+      "rootFolder": "NimbyRailsFranceSDK-0.7.1",
       "name": "NimbyRailsFranceSDK + NRF Loader",
-      "sha256": "db5c6bd2545ff687c0ca5ea3a7c9f283b6544210b83ec8f0313239928fae73b7",
+      "sha256": "c25323c629736e806aeacaf63409c6d3279d0edf653969e68e2c31824ef49c97",
       "gameSha256": [
         "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
       ]
     },
     {
-      "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.5.1/NimbyTco-0.5.1-windows-x64.zip",
+      "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.5.2/NimbyTco-0.5.2-windows-x64.zip",
       "id": "tco",
       "kind": "tco",
-      "size": 55404796,
-      "version": "0.5.1",
-      "rootFolder": "NimbyTco-0.5.1",
+      "size": 55672032,
+      "version": "0.5.2",
+      "rootFolder": "NimbyTco-0.5.2",
       "gameSha256": [
         "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
       ],
       "name": "Nimby TCO",
-      "sha256": "c9591ecd87141bedf22bd618dc17bea38c886bb2863d67e5c59619058c8cbe55",
+      "sha256": "7b12a266fb9cbe711833126e0a5c7db7ebd759cbb2a81e31118ad0e03e588ca7",
       "sdkMaxExclusive": "0.8.0",
-      "sdkMin": "0.7.0"
+      "sdkMin": "0.7.1"
     }
   ],
   "hub": {
