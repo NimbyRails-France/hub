@@ -19,11 +19,11 @@ def get(url):
         raise ValueError("Manifest too large")
     return json.loads(data)
 
-def project(repo):
+def project(repo, kind):
     release = get(f"https://api.github.com/repos/NimbyRails-France/{repo}/releases/latest")
     manifest = next(a for a in release["assets"] if a["name"] == "project.json")
     value = get(manifest["browser_download_url"])
-    if value.get("id") != repo or value.get("kind") != repo:
+    if value.get("id") != repo or value.get("kind") != kind:
         raise ValueError("Wrong project identity")
     if not re.fullmatch(r"\d{1,4}\.\d{1,4}\.\d{1,4}", value.get("version", "")):
         raise ValueError("Invalid version")
@@ -42,8 +42,9 @@ def main():
     path = ROOT / "catalog.json"
     catalogue = json.loads(path.read_text(encoding="utf-8-sig"))
     old = {p["id"]: p for p in catalogue["projects"]}
-    for repo in ("sdk", "tco"):
-        value = project(repo)
+    for repo, kind in (("sdk", "sdk"), ("tco", "tco"),
+                       ("signalisationfrancaiserealiste", "native-mod")):
+        value = project(repo, kind)
         if repo in old and tuple(map(int, value["version"].split("."))) < tuple(map(int, old[repo]["version"].split("."))):
             raise ValueError("Refusing catalogue downgrade")
         old[repo] = value

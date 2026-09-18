@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NRFHub VERSION 0.2.2 LANGUAGES CXX)
+project(NRFHub VERSION 0.2.3 LANGUAGES CXX)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Network)
 qt_standard_project_setup()
 qt_add_executable(NRFHub WIN32 src/main.cpp src/hub.cpp src/hub-desktop.cpp src/hub.h src/updater.cpp src/updater.h)
