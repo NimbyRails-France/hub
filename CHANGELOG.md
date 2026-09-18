@@ -4,17 +4,15 @@
 
 ## [0.3.0] - 2026-09-18
 
-- Découverte des applications et de leurs releases directement sur GitHub, sans catalogue central.
-- Choix alpha, bêta ou stable indépendant pour chaque projet et pour le Hub ; stable par défaut.
-- Classement des préversions par numéro, séparation stricte des canaux et retour manuel vers une version plus ancienne.
-- Consultation du changelog de la version sélectionnée.
-- Vérification du manifeste, du tag, des fichiers, de leur taille et de leur SHA-256 ; maintien des protections d'installation et de compatibilité.
-- Cache des réponses GitHub et attente en cas de limitation de l'API.
-- Versionnage et scripts de packaging compatibles avec les canaux de préversion.
+### Nouveautés
+- Choisissez indépendamment une version stable, bêta ou alpha pour chaque application et pour le Hub.
+- Consultez les nouveautés de chaque version avant de l’installer.
+- Les nouvelles versions disponibles sont désormais retrouvées directement auprès des projets officiels.
 
-- Les scripts de packaging utilisent la version du projet au lieu de numéros écrits en dur.
-
-- Validation Woodpecker et contrôle de cohérence des versions et du changelog.
+### Améliorations
+- La version stable reste sélectionnée par défaut.
+- Vous pouvez revenir manuellement à une version antérieure après confirmation.
+- Les téléchargements sont vérifiés avant l’installation. Vos applications déjà installées restent visibles en cas d’indisponibilité du service.
 
 ## [0.2.3] - 2026-09-18
 

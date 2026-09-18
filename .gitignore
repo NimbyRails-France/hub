@@ -9,3 +9,11 @@
 
 # Isolated CI dependencies
 .ci/
+
+.release-plan.json
+
+dist/
+
+nrf-package-*/
+
+__pycache__/

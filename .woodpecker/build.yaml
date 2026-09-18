@@ -1,12 +1,17 @@
-# Build on the general agent; no host volumes or production credentials.
+# Verify and package every commit; only an explicit release subject publishes.
 labels:
   pool: general
 concurrency: 1
 when:
   - event: [push, manual]
-  - event: tag
 steps:
   - name: windows-build-and-tests
-    image: univenanne-ci-nimby-windows:20260918
+    image: univenanne-ci-nimby-release:20260918
     commands:
       - sh .woodpecker/build.sh
+      - python3 .woodpecker/package.py
+  - name: publish-release
+    image: univenanne-ci-nimby-publisher:20260918
+    settings:
+      token:
+        from_secret: nrf_release_token

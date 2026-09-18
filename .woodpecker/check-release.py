@@ -26,3 +26,8 @@ if tag:
  assert section.group(1) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',section.group(1)),'Tagged releases need a dated changelog'
 if '--notes' in sys.argv:print(section.group(2).strip())
 else:print('Version, channel and changelog verified:',version,channel)
+
+# Decide whether this commit is eligible for publication.
+if "--notes" not in sys.argv:
+ import runpy
+ runpy.run_path(str(root/".woodpecker/release-policy.py"),run_name="__main__")

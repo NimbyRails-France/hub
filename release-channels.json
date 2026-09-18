@@ -5,5 +5,10 @@
     "stable"
   ],
   "default": "stable",
-  "source": "github-releases"
+  "source": "github-releases",
+  "branches": {
+    "main": "stable",
+    "alpha": "alpha",
+    "beta": "beta"
+  }
 }
