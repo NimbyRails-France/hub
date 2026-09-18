@@ -171,7 +171,7 @@ if($project.kind -eq 'native-mod'){
   $record.loaderLink=[IO.Path]::GetFullPath((Join-Path $request.gameDirectory "NRFMods/$($project.id)"))
   if(!$old -and (Get-Item -LiteralPath $record.loaderLink -Force -ErrorAction SilentlyContinue)){throw 'NRF mod registration already exists'}
  }
- if($old -and $old.loaderLink -ne $record.loaderLink){throw 'NRF Loader registration changed; reinstall this project'}
+ if($old -and $old.loaderLink -and $old.loaderLink -ne $record.loaderLink){throw 'NRF Loader registration changed; reinstall this project'}
 }
 $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath "$stage/.nrf-project.json" -Encoding UTF8
 Closed;CompatibleGame

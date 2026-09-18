@@ -83,3 +83,9 @@ New-Item -ItemType Directory -Path $loaderLink -Force | Out-Null
 Run $false
 if(!(Test-Path "$loaderLink/foreign.txt")){throw 'Foreign registration modified'}
 Write-Output 'PASS: NRF mod DLL required, register, update, rollback, unregister, foreign registration protection'
+$req.destination="$root/migrated-mod";$p.id='fixture-migration';$p.modId='fixture-migration'
+$p.Remove('loaderApi');$p.Remove('module');Run $true
+$p.loaderApi=1;$p.module='FixtureMod.dll';Run $true
+if(!(Test-Path "$root/game/NRFMods/fixture-migration/FixtureMod.dll")){throw 'Older Hub installation was not registered with NRF Loader'}
+$req.action='remove';Run $true
+Write-Output 'PASS: upgrade native mod installed by an older Hub to NRF Loader registration'

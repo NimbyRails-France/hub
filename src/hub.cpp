@@ -85,7 +85,11 @@ bool Hub::compatible(const QJsonObject& p,QString& reason)const{
   for(const auto& v:installed_){const auto dependent=v.toObject();if(!dependent.contains("sdkMin"))continue;
    if(candidate<QVersionNumber::fromString(dependent["sdkMin"].toString())||candidate>=QVersionNumber::fromString(dependent["sdkMaxExclusive"].toString())){reason="Version SDK incompatible avec "+dependent["id"].toString();return false;}}
  }
- if(p["kind"]!="sdk" && p["loaderApi"].toInt()>installed_["sdk"].toObject()["loaderApi"].toInt()){reason="Mise à jour du NRF Loader requise pour les mods C++";return false;}
+ // Older Hubs did not persist loaderApi when installing a newer SDK package.
+ const auto sdkRecord=installed_["sdk"].toObject();
+ const int installedLoaderApi=sdkRecord["loaderApi"].toInt(
+  QVersionNumber::fromString(sdkRecord["version"].toString())>=QVersionNumber(0,7,2)?1:0);
+ if(p["kind"]!="sdk" && p["loaderApi"].toInt()>installedLoaderApi){reason="Mise à jour du NRF Loader requise pour les mods C++";return false;}
  if(p["kind"]=="sdk"){for(const auto& v:installed_){const auto dependent=v.toObject();if(dependent["kind"]!="sdk" && dependent["loaderApi"].toInt()>p["loaderApi"].toInt()){reason="NRF Loader requis par "+dependent["id"].toString();return false;}}}
  if(p.contains("sdkMin")){const auto sdk=installed_["sdk"].toObject();const auto v=QVersionNumber::fromString(sdk["version"].toString());if(v<QVersionNumber::fromString(p["sdkMin"].toString())||v>=QVersionNumber::fromString(p["sdkMaxExclusive"].toString())){reason="SDK "+p["sdkMin"].toString()+" requis";return false;}}
  reason="Compatible";return true;
