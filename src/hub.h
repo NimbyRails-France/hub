@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 class Updater;
+class ReleaseClient;
 class Hub:public QMainWindow {
 public:
  Hub();
@@ -26,6 +27,7 @@ protected:
 private:
  QNetworkAccessManager network_;
  QJsonArray projects_;QJsonObject installed_;
+ QJsonObject channels_;QStringList repositories_;ReleaseClient* releases_=nullptr;
  QTableWidget* table_;QLineEdit *game_,*root_;QLabel *gameStatus_,*status_;QPlainTextEdit* log_;QCheckBox* automatic_;
  QPushButton *install_,*launch_,*remove_,*rollback_,*refresh_;
  QString dataDir_,gameHash_;bool busy_=false;QProcess* operation_=nullptr;

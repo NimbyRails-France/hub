@@ -1,5 +1,7 @@
 #include "hub.h"
 #include "updater.h"
+#include "releases.h"
+#include <QComboBox>
 #include <QApplication>
 #include <QMenu>
 #include <QMenuBar>
@@ -11,6 +13,8 @@
 #include <QDateTime>
 #include <memory>
 #include <cstdio>
+#include <QFile>
+#include <QStandardPaths>
 
 namespace {
 constexpr auto pushUrl="https://ntfy.sh/nrf-hub-releases-v1-67e49b30/json";
@@ -63,14 +67,14 @@ void Hub::setupDesktop(){
   if(busy_){pushDebounce_->start(5000);return;}
   pushThrottle_.restart();append("Événement reçu : vérification des releases officielles…");refresh();selfUpdate_->check();
  });
- QTimer::singleShot(0,this,[this]{connectPush();});
+ if(!qApp->arguments().contains("--ui-test"))QTimer::singleShot(0,this,[this]{connectPush();});
 }
 
 void Hub::schedulePushCheck(){
  // Relay events are untrusted wake-up hints, never download instructions.
- // Coalesce bursts and keep a maximum of one check per minute.
+ // Coalesce bursts and keep a maximum of one check per five minutes.
  if(pushDebounce_->isActive())return;
- const auto delay=pushThrottle_.isValid()?qMax<qint64>(2000,60000-pushThrottle_.elapsed()):2000;
+ const auto delay=pushThrottle_.isValid()?qMax<qint64>(2000,300000-pushThrottle_.elapsed()):2000;
  pushDebounce_->start(int(delay));
 }
 void Hub::connectPush(){
@@ -81,7 +85,7 @@ void Hub::connectPush(){
   *pending+=reply->readAll();
   while(true){const auto end=pending->indexOf('\n');if(end<0)break;
    const auto event=QJsonDocument::fromJson(pending->left(end)).object();pending->remove(0,end+1);
-   if(event["event"]=="open"){reconnectMs_=2000;pushStatus_->setText("Notifications en direct : connectées");schedulePushCheck();}
+   if(event["event"]=="open"){reconnectMs_=2000;pushStatus_->setText("Notifications en direct : connectées");}
    else if(event["event"]=="message"){++pushMessages_;schedulePushCheck();}
   }
   if(pending->size()>65536)reply->abort();
@@ -93,34 +97,28 @@ void Hub::connectPush(){
 }
 
 void Hub::refreshReleases(int index){
- // Fixed official endpoints avoid waiting for the hourly catalogue workflow.
- // Mods keep using the curated catalogue; no endpoint comes from the relay.
- const QStringList ids{"sdk","tco"};
- if(index>=ids.size()){setBusy(false);detectGame();render();notifyUpdates();checkUpdates();return;}
- setBusy(true);const auto id=ids[index];
- QNetworkRequest request{QUrl("https://github.com/NimbyRails-France/"+id+"/releases/latest/download/project.json?check="+QString::number(QDateTime::currentMSecsSinceEpoch()))};
- request.setTransferTimeout(30000);request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::NoLessSafeRedirectPolicy);
- auto* reply=network_.get(request);auto bytes=std::make_shared<QByteArray>();
- connect(reply,&QIODevice::readyRead,this,[reply,bytes]{*bytes+=reply->readAll();if(bytes->size()>65536)reply->abort();});
- connect(reply,&QNetworkReply::finished,this,[this,reply,bytes,id,index]{
-  *bytes+=reply->readAll();auto p=QJsonDocument::fromJson(*bytes).object();
-  const bool valid=reply->error()==QNetworkReply::NoError&&bytes->size()<=65536&&validProject(p)&&p["id"]==id&&p["kind"]==id&&QUrl(p["url"].toString()).path().startsWith("/NimbyRails-France/"+id+"/releases/download/");
-  reply->deleteLater();
-  if(valid){++verifiedReleases_;bool found=false;for(int i=0;i<projects_.size();++i){if(projects_[i].toObject()["id"]!=id)continue;found=true;
-    if(QVersionNumber::fromString(p["version"].toString())>=QVersionNumber::fromString(projects_[i].toObject()["version"].toString()))projects_[i]=p;
-   }if(!found)projects_.append(p);
-  }else append("Release "+id+" indisponible ou invalide · catalogue conservé");
+ if(index>=repositories_.size()){setBusy(false);detectGame();render();append("Releases vérifiées · "+QString::number(verifiedReleases_)+" manifestes reçus");notifyUpdates();checkUpdates();return;}
+ const auto id=repositories_[index];const auto channel=Releases::selectedChannel(channels_,id);
+ releases_->fetch(id,channel,"project.json",[this,index,id,channel](QJsonObject p,QString error){
+  if(error.isEmpty()&&(!validProject(p)||p["id"]!=id||(id=="sdk"&&p["kind"]!="sdk")||(id=="tco"&&p["kind"]!="tco")||(id!="sdk"&&p["kind"]=="sdk")))error="Manifeste du projet invalide";
+  if(error.isEmpty()){++verifiedReleases_;projects_.append(p);}
+  else {auto unavailable=installed_[id].toObject();unavailable["id"]=id;unavailable["name"]=id;unavailable["channel"]=channel;unavailable["unavailable"]=true;unavailable["error"]=error;projects_.append(unavailable);append(id+" : "+error);}
   refreshReleases(index+1);
  });
 }
 void Hub::notifyUpdates(){
  for(auto value:projects_){const auto p=value.toObject();const auto id=p["id"].toString(),version=p["version"].toString();const auto record=installed_[id].toObject();
-  if(record.isEmpty()||QVersionNumber::fromString(version)<=QVersionNumber::fromString(record["version"].toString())||notified_[id]==version)continue;
-  notified_[id]=version;notify("Mise à jour disponible",p["name"].toString()+" "+version);append(p["name"].toString()+" "+version+" disponible");
+  if(p["unavailable"].toBool()||p["installedOnly"].toBool()||record.isEmpty()||Releases::compare(version,record["version"].toString())<=0||notified_[id+":"+p["channel"].toString()]==version)continue;
+  notified_[id+":"+p["channel"].toString()]=version;notify("Mise à jour disponible",p["name"].toString()+" "+version);append(p["name"].toString()+" "+version+" disponible");
  }save();
 }
 
 bool Hub::desktopSelfTest(){
+ projects_=QJsonArray{QJsonObject{{"id","sdk"},{"name","SDK"},{"unavailable",true},{"error","Aucune release"}},QJsonObject{{"id","tco"},{"name","TCO"},{"unavailable",true}}};
+ channels_=QJsonObject{{"sdk","beta"}};render();save();
+ auto* sdk=findChild<QComboBox*>("channel-sdk");auto* tco=findChild<QComboBox*>("channel-tco");
+ if(!sdk||!tco||sdk->currentData()!="beta"||tco->currentData()!="stable")return false;
+ QFile saved(dataDir_+"/settings.json");if(!saved.open(QIODevice::ReadOnly)||QJsonDocument::fromJson(saved.readAll()).object()["channels"].toObject()["sdk"]!="beta")return false;
  showNormal();toggleFullscreen();if(!isFullScreen()){std::puts("Enter fullscreen failed");return false;}toggleFullscreen();if(isFullScreen()){std::puts("Leave fullscreen failed");return false;}
  showMaximized();toggleFullscreen();toggleFullscreen();if(!isMaximized()){std::puts("Restore maximized failed");return false;}
  if(tray_){close();if(isVisible()){std::puts("Close to tray failed");return false;}showHub();if(!isVisible()){std::puts("Show from tray failed");return false;}}
@@ -129,5 +127,5 @@ bool Hub::desktopSelfTest(){
 }
 bool Hub::networkSelfTest()const{
  std::printf("Relay messages: %d; verified official manifests: %d; tray: %d\n",pushMessages_,verifiedReleases_,int(tray_&&tray_->isVisible()));
- return pushMessages_>0&&verifiedReleases_>=2;
+ return verifiedReleases_>=3;
 }

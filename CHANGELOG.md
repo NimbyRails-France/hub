@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-18
+
+- Découverte des applications et de leurs releases directement sur GitHub, sans catalogue central.
+- Choix alpha, bêta ou stable indépendant pour chaque projet et pour le Hub ; stable par défaut.
+- Classement des préversions par numéro, séparation stricte des canaux et retour manuel vers une version plus ancienne.
+- Consultation du changelog de la version sélectionnée.
+- Vérification du manifeste, du tag, des fichiers, de leur taille et de leur SHA-256 ; maintien des protections d'installation et de compatibilité.
+- Cache des réponses GitHub et attente en cas de limitation de l'API.
+- Versionnage et scripts de packaging compatibles avec les canaux de préversion.
+
 - Les scripts de packaging utilisent la version du projet au lieu de numéros écrits en dur.
 
 - Validation Woodpecker et contrôle de cohérence des versions et du changelog.

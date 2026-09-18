@@ -1,4 +1,4 @@
-# Notifications et fenêtre (Hub 0.2)
+# Notifications et fenêtre (Hub 0.3)
 
 - La croix masque le Hub dans la zone de notification Windows. Les téléchargements et contrôles continuent.
 - Le bouton Windows Réduire conserve le fonctionnement habituel de la barre des tâches.
@@ -20,9 +20,9 @@ Le relais ntfy transforme le JSON GitHub en un simple signal `release`. Le Hub m
 
 Le relais reçoit les événements des dépôts publics et l’adresse IP des clients abonnés. Le sujet est public : **ses événements ne sont pas authentifiés et ne sont jamais des instructions d’installation**. Le Hub ignore tout contenu reçu, puis relit uniquement les manifestes des releases officielles sur GitHub. Les empreintes SHA-256, tailles et contraintes de compatibilité restent vérifiées avant installation.
 
-Les SDK/TCO sont vérifiés directement via `releases/latest/download/project.json`, sans attendre la synchronisation horaire du catalogue. Le Hub utilise son propre manifeste `hub-latest.json`. Les mods restent dans le catalogue validé.
+Le Hub découvre les dépôts publics officiels et sélectionne les releases du canal choisi pour chacun : stable, bêta ou alpha. SDK, TCO et mods fournissent `project.json` dans leur release ; le Hub utilise `hub-latest.json` dans sa propre release. Il ne lit plus le catalogue central.
 
-Les événements rapprochés sont regroupés avec au plus une vérification par minute. Une installation en cours reporte le contrôle. La connexion se rétablit automatiquement avec un délai croissant de 2 secondes à 5 minutes. Le contrôle périodique des projets toutes les 15 minutes et du Hub toutes les 6 heures reste actif en secours.
+Les événements rapprochés sont regroupés avec au plus une vérification toutes les cinq minutes. Une installation en cours reporte le contrôle. La connexion se rétablit automatiquement avec un délai croissant de 2 secondes à 5 minutes. Le contrôle périodique des projets toutes les 15 minutes et du Hub toutes les 6 heures reste actif en secours. Une limite de requêtes GitHub est affichée et respectée avant toute nouvelle tentative.
 
 Le Hub doit être lancé, éventuellement masqué. **Quitter** arrête aussi la réception ; au prochain lancement, une vérification complète récupère les versions éventuellement manquées. Il n’est pas lancé automatiquement au démarrage Windows.
 
@@ -30,6 +30,6 @@ Références : [webhooks GitHub](https://docs.github.com/en/rest/repos/webhooks)
 
 ## Vérification
 
-`ctest --test-dir build --output-on-failure` teste la validation du catalogue, le passage plein écran/normal/maximisé et la fermeture/restauration depuis la zone de notification.
+`ctest --test-dir build --output-on-failure` teste la validation des manifestes, la sélection des canaux, le classement des préversions, les préférences indépendantes et les fonctions de fenêtre.
 
-Pour un test réel, lancer `NRFHub.exe --network-test`, puis envoyer un ping depuis les paramètres du webhook GitHub durant les 25 secondes du test. Le programme utilise un profil de test distinct et réussit uniquement s’il reçoit un événement du relais et valide les deux manifestes officiels SDK/TCO. Ce test dépend du réseau et ne fait pas partie des tests hors ligne.
+Pour un test réel, lancer `NRFHub.exe --network-test`. Le programme utilise un profil de test distinct, désactive les installations automatiques et vérifie trois manifestes officiels en 25 secondes. Il ne nécessite pas de publication fictive ni de message envoyé au relais. Ce test dépend du réseau et ne fait pas partie des tests hors ligne.

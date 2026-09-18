@@ -1,0 +1,9 @@
+{
+  "channels": [
+    "alpha",
+    "beta",
+    "stable"
+  ],
+  "default": "stable",
+  "source": "github-releases"
+}
