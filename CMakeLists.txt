@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NRFHub VERSION 0.3.0 LANGUAGES CXX)
+project(NRFHub VERSION 0.3.1 LANGUAGES CXX)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" NRF_RELEASE_VERSION LIMIT_COUNT 1)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Network)
 qt_standard_project_setup()

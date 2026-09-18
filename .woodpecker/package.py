@@ -102,6 +102,10 @@ if REPO == 'hub':
     stage = qt_app('NRFHub.exe')
     copy(ROOT / 'scripts', stage / 'scripts')
     (stage / 'hub-update.json').write_text(json.dumps({'feed': 'https://github.com/NimbyRails-France/hub/releases/latest/download/hub-latest.json'}), encoding='utf-8')
+    # Run the shipped application with only its packaged DLLs, not the Qt SDK.
+    env = dict(os.environ, WINEPATH=winepath(stage), QT_QPA_PLATFORM='windows')
+    for flag in ('--self-test', '--ui-test'):
+        run('xvfb-run', '-a', 'wine', winepath(stage / 'NRFHub.exe'), flag, env=env, timeout=90)
     setup = installer(stage, 'NRFHub')
     write('hub-latest.json', dict(schema=1, product='NRFHub', platform='windows-x64', **metadata(setup)))
 elif REPO == 'tco':

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-18
+
+### Améliorations
+- Vérification renforcée des mises à jour avant leur mise à disposition.
+- Présentation des nouveautés et des corrections plus claire dans les notes de version.
+
 ## [0.3.0] - 2026-09-18
 
 ### Nouveautés
