@@ -59,3 +59,27 @@ $entry=$z.CreateEntry('Fixture/../escape.txt');$stream=$entry.Open();$stream.Wri
 $req.action='install';$req.archive=$badZip;$p.sha256=(Get-FileHash $badZip).Hash.ToLowerInvariant();$p.size=(Get-Item $badZip).Length
 Run $false
 Write-Output 'PASS: native mod custom folder junction, uninstall junction, zip traversal rejection'
+$req.archive=$zip;$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+$p.loaderApi=1;$p.module='FixtureMod.dll'
+Run $false # Declared C++ mod without its DLL.
+[IO.File]::WriteAllText("$root/package/Fixture/FixtureMod.dll",'fixture module v1')
+$zip=Archive;$req.archive=$zip;$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+$p.module='../FixtureMod.dll';Run $false;$p.module='FixtureMod.dll'
+Run $true
+$loaderLink="$root/game/NRFMods/fixture-mod"
+if((Get-Content -LiteralPath "$loaderLink/nrf-mod.ini" -Raw) -notmatch 'library=FixtureMod.dll'){throw 'NRF module filename manifest missing'}
+if([IO.File]::ReadAllText("$loaderLink/FixtureMod.dll") -ne 'fixture module v1'){throw 'NRF Loader registration missing'}
+[IO.File]::WriteAllText("$root/package/Fixture/FixtureMod.dll",'fixture module v2')
+$zip=Archive;$req.archive=$zip;$p.version='1.2.0';$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+Run $true
+if([IO.File]::ReadAllText("$loaderLink/FixtureMod.dll") -ne 'fixture module v2'){throw 'NRF module update failed'}
+$req.action='rollback';Run $true
+if([IO.File]::ReadAllText("$loaderLink/FixtureMod.dll") -ne 'fixture module v1'){throw 'NRF module rollback failed'}
+$req.action='remove';Run $true
+if(Get-Item -LiteralPath $loaderLink -Force -ErrorAction SilentlyContinue){throw 'NRF junction remains'}
+$req.action='install'
+New-Item -ItemType Directory -Path $loaderLink -Force | Out-Null
+[IO.File]::WriteAllText("$loaderLink/foreign.txt",'owned by someone else')
+Run $false
+if(!(Test-Path "$loaderLink/foreign.txt")){throw 'Foreign registration modified'}
+Write-Output 'PASS: NRF mod DLL required, register, update, rollback, unregister, foreign registration protection'

@@ -12,6 +12,11 @@ int main(int argc,char** argv){
  if(app.arguments().contains("--self-test")){
   QJsonObject p{{"id","tco"},{"kind","tco"},{"version","0.4.0"},{"url","https://github.com/NimbyRails-France/tco/releases/download/v0.4.0/tco.zip"},{"sha256",QString(64,'a')},{"size",1234},{"rootFolder","NimbyTco-0.4.0"}};
   if(!Hub::validProject(p))return 1;p["id"]="../bad";if(Hub::validProject(p))return 2;p["id"]="tco";p["url"]="http://example.com/file";if(Hub::validProject(p))return 3;
+  p["url"]="https://github.com/NimbyRails-France/tco/releases/download/v0.4.0/tco.zip";
+  p["kind"]="native-mod";p["loaderApi"]=1;p["module"]="FixtureMod.dll";if(!Hub::validProject(p))return 6;
+  p["module"]="../outside.dll";if(Hub::validProject(p))return 9;p["module"]="FixtureMod.dll";
+  p["loaderApi"]=2;if(Hub::validProject(p))return 7;
+  p["loaderApi"]=1;p["kind"]="tco";if(Hub::validProject(p))return 8;
   std::puts("Hub catalogue validation passed");return 0;
  }
  const bool uiTest=app.arguments().contains("--ui-test");

@@ -11,6 +11,22 @@ Un mod natif déclare `modId`, identique au nom de sa jonction dans le dossier
 des mods. Son dossier contient `mod.txt`. La compatibilité native des scripts
 doit être testée avant de publier leur hash de jeu dans le catalogue.
 
+Un mod C++ conserve `kind: native-mod` et déclare `loaderApi: 1`, `sdkMin` et
+`sdkMaxExclusive`. Le champ `module` nomme sa DLL, par exemple
+`SignalisationFrancaiseRealisteMod.dll`, fournie à la racine. Le gestionnaire
+valide ce nom et écrit `nrf-mod.ini` (`[NRFMod]`, `library=<module>`). Il crée
+une seconde jonction `<jeu>/NRFMods/<id>` vers son dossier d'installation,
+en plus de la jonction des ressources. Le paquet SDK compatible déclare aussi
+`loaderApi: 1`. Les anciens SDK ne satisfont pas cette dépendance.
+Les exports V1 sont `DWORD WINAPI NRFMod_StartV1(void*)` et
+`DWORD WINAPI NRFMod_StopV1(void*)`, appelés avec `nullptr`, hors `DllMain`.
+Start retourne 0 (initialisé) ou 4 (déjà initialisé), Stop retourne 0 (arrêté).
+Les autres codes signalent un échec. Aucun objet C++ ne traverse cette ABI.
+Le démarrage précède le chargement de la partie : ne pas supposer la simulation disponible.
+Le module doit arrêter ses tâches avant de retourner de Stop. Les DLL restent
+chargées jusqu'à la fermeture du jeu. Retirer un projet du Hub désactive aussi
+son module C++ ; désactiver seulement ses textures dans le jeu ne le désactive pas.
+
 Le paquet SDK pour le Hub contient le kit à sa racine et `loader/` avec le
 proxy SDL, le SDK, sa dépendance et le script `install-proxy.ps1`. Il ne contient
 ni SDL originale, ni exécutable du jeu, ni sauvegarde.

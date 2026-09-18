@@ -51,7 +51,7 @@ function TcoShortcut([bool]$remove=$false){
 }
 function Closed {
  $gameExe=[IO.Path]::GetFullPath((Join-Path $request.gameDirectory 'NIMBYRails.exe'))
- foreach($process in @(Get-Process -Name NIMBYRails,NimbyTco,NimbyRailsLoader -ErrorAction SilentlyContinue)){
+ foreach($process in @(Get-Process -Name NIMBYRails,NimbyTco,NimbyRailsLoader,NimbyRailsFranceLoader -ErrorAction SilentlyContinue)){
   if(!$process.Path -or $process.Path -ieq $gameExe -or $process.Path.StartsWith($destination+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Close the game, TCO and external loader first'}
  }
 }
@@ -65,14 +65,24 @@ function Proxy([string]$path,[string]$action){
  if($LASTEXITCODE){throw "SDK loader $action failed"}
 }
 function LinkMod([string]$path,[object]$record){
- if(!$record.modLink){return}
- $link=[IO.Path]::GetFullPath($record.modLink)
- if(Test-Path -LiteralPath $link){
-  $item=Get-Item -LiteralPath $link
-  if(!($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or [IO.Path]::GetFullPath($item.Target[0]) -ne $destination){throw 'Existing mod path is not our junction'}
-  [IO.Directory]::Delete($link)
+ $links=@($record.modLink,$record.loaderLink) | Where-Object { $_ }
+ # Validate every existing link before changing any of them (including dangling junctions).
+ foreach($link in $links){
+  $item=Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+  if($item -and (!($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or [IO.Path]::GetFullPath($item.Target[0]) -ne $destination)){throw 'Existing mod path is not our junction'}
  }
- if($path){$null=New-Item -ItemType Junction -Path $link -Target $destination}
+ $created=@()
+ try {
+  foreach($link in $links){
+   $item=Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+   if(!$path){if($item){[IO.Directory]::Delete($link)};continue}
+   if(!$item){
+    New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($link)) | Out-Null
+    $null=New-Item -ItemType Junction -Path $link -Target $destination
+    $created+=$link
+   }
+  }
+ }catch{foreach($link in $created){[IO.Directory]::Delete($link)};throw}
 }
 Closed
 $old=$null
@@ -138,7 +148,12 @@ try {
  }
 }finally{$zip.Dispose()}
 $record=[ordered]@{id=$project.id;kind=$project.kind;version=$project.version;directory=$destination;gameSha256=@($project.gameSha256);installedUtc=[DateTime]::UtcNow.ToString('o')}
+if($project.name){$record.name=$project.name}
 if($project.sdkMin){$record.sdkMin=$project.sdkMin;$record.sdkMaxExclusive=$project.sdkMaxExclusive}
+if($project.loaderApi){
+ if($project.loaderApi -ne 1 -or $project.kind -notin @('sdk','native-mod')){throw 'Unsupported NRF Loader API'}
+ $record.loaderApi=1
+}
 if($project.kind -eq 'sdk' -and !(Test-Path -LiteralPath "$stage/loader/install-proxy.ps1")){throw 'SDK loader missing'}
 if($project.kind -eq 'tco' -and !(Test-Path -LiteralPath "$stage/NimbyTco.exe")){throw 'TCO executable missing'}
 if($project.kind -eq 'native-mod'){
@@ -148,6 +163,15 @@ if($project.kind -eq 'native-mod'){
  $record.modLink=Join-Path $mods $project.modId
  if(!$old -and (Test-Path -LiteralPath $record.modLink)){throw 'A mod with this ID already exists'}
  if($old -and $old.modLink -ne $record.modLink){throw 'Mod ID changed'}
+ if($project.loaderApi -eq 1){
+  if($project.module -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*\.dll$' -or $project.module.Length -ge 200){throw 'Invalid NRF module filename'}
+  if(!(Test-Path -LiteralPath (Join-Path $stage $project.module) -PathType Leaf)){throw 'NRF mod DLL missing'}
+  $record.module=$project.module
+  "[NRFMod]`r`nlibrary=$($project.module)`r`n" | Set-Content -LiteralPath "$stage/nrf-mod.ini" -Encoding Unicode
+  $record.loaderLink=[IO.Path]::GetFullPath((Join-Path $request.gameDirectory "NRFMods/$($project.id)"))
+  if(!$old -and (Get-Item -LiteralPath $record.loaderLink -Force -ErrorAction SilentlyContinue)){throw 'NRF mod registration already exists'}
+ }
+ if($old -and $old.loaderLink -ne $record.loaderLink){throw 'NRF Loader registration changed; reinstall this project'}
 }
 $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath "$stage/.nrf-project.json" -Encoding UTF8
 Closed;CompatibleGame

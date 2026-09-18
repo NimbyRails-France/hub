@@ -17,8 +17,10 @@ Le bouton d'installation demande le dossier parent de chaque projet.
   Un raccourci **Nimby TCO** est créé dans le menu Démarrer, sous **NimbyRails France Hub**,
   à l'installation, à la mise à jour ou au retour à la version précédente ; il est retiré à la désinstallation.
 - **Mods natifs** : installés dans le dossier choisi, avec une jonction depuis
-  le dossier de mods du jeu. NIMBY Rails charge ces mods ; le SDK n'est pas un
-  chargeur de DLL arbitraires. Aucun mod fictif n'est présenté comme publié.
+  le dossier de mods du jeu. Les projets déclarant `loaderApi: 1` fournissent
+  également une DLL nommée dans le champ `module` : le Hub les enregistre dans `<jeu>/NRFMods/` et le
+  NRF Loader les initialise automatiquement. Un loader compatible est requis.
+  Les projets locaux absents du catalogue sont affichés comme non publiés.
 
 Une ancienne installation du SDK effectuée hors du Hub doit être retirée avec
 son installateur original avant la première installation gérée. Le Hub ne
