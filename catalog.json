@@ -1,14 +1,15 @@
 {
   "projects": [
     {
-      "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.7.1/NimbyRailsFranceSDK-0.7.1-hub.zip",
+      "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.7.2/NimbyRailsFranceSDK-0.7.2-hub.zip",
       "id": "sdk",
       "kind": "sdk",
-      "size": 10517570,
-      "version": "0.7.1",
-      "rootFolder": "NimbyRailsFranceSDK-0.7.1",
+      "loaderApi": 1,
+      "size": 10996984,
+      "version": "0.7.2",
+      "rootFolder": "NimbyRailsFranceSDK-0.7.2",
       "name": "NimbyRailsFranceSDK + NRF Loader",
-      "sha256": "c25323c629736e806aeacaf63409c6d3279d0edf653969e68e2c31824ef49c97",
+      "sha256": "497fa2f4ac06587db4a0624d71b5c4644425f3d3e1cabef06fdf03a7a9ace038",
       "gameSha256": [
         "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
       ]
@@ -27,16 +28,34 @@
       "sha256": "7b12a266fb9cbe711833126e0a5c7db7ebd759cbb2a81e31118ad0e03e588ca7",
       "sdkMaxExclusive": "0.8.0",
       "sdkMin": "0.7.1"
+    },
+    {
+      "id": "signalisationfrancaiserealiste",
+      "name": "Signalisation francaise realiste",
+      "kind": "native-mod",
+      "version": "0.1.0",
+      "modId": "SignalisationFrancaiseRealiste",
+      "loaderApi": 1,
+      "sdkMin": "0.7.2",
+      "sdkMaxExclusive": "0.8.0",
+      "module": "SignalisationFrancaiseRealisteMod.dll",
+      "rootFolder": "SignalisationFrancaiseRealiste-0.1.0",
+      "size": 1008227,
+      "sha256": "3cfbb0e2b11b145ef793f13d04e77877840824e852b62a84e905cd5e54f06ff3",
+      "url": "https://github.com/NimbyRails-France/signalisationfrancaiserealiste/releases/download/v0.1.0/SignalisationFrancaiseRealiste-0.1.0-windows-x64.zip",
+      "gameSha256": [
+        "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"
+      ]
     }
   ],
   "hub": {
-    "version": "0.2.2",
+    "version": "0.2.3",
     "schema": 1,
-    "sha256": "2edf5d235da71245e95bc1e610b210b9789f427c86bf99e52a76e2c0b23a660e",
+    "sha256": "c150994c9e42cb2bb2468dfaf6035f73e7383b05054c311ef95178111093a57f",
     "product": "NRFHub",
     "platform": "windows-x64",
-    "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.2.2/NRFHub-0.2.2-Setup.exe",
-    "size": 23613142
+    "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.2.3/NRFHub-0.2.3-Setup.exe",
+    "size": 23619052
   },
   "schema": 1
 }
