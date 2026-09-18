@@ -1,5 +1,7 @@
 param([string]$Iscc="$env:LOCALAPPDATA/Programs/InnoSetup/ISCC.exe",[string]$QtRoot='C:/Qt/6.11.2/mingw_64',[string]$QtTools='C:/Qt/Tools',[string]$QtLicenseRoot='C:/Qt/Licenses')
 $ErrorActionPreference='Stop'
+$version=(Get-Content -LiteralPath "$PSScriptRoot/VERSION" -Raw).Trim()
+if($version -notmatch '^\d+\.\d+\.\d+$'){throw 'Invalid VERSION'}
 & "$PSScriptRoot/build.ps1" -QtRoot $QtRoot -QtTools $QtTools
 $stage=Join-Path $PSScriptRoot ('build/package-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
@@ -14,9 +16,9 @@ Copy-Item -LiteralPath "$QtRoot/sbom" -Destination "$stage/licenses/Qt/sbom" -Re
 Copy-Item -LiteralPath "$QtTools/mingw1310_64/licenses" -Destination "$stage/licenses/MinGW" -Recurse
 @{feed='https://github.com/NimbyRails-France/hub/releases/latest/download/hub-latest.json'} | ConvertTo-Json | Set-Content "$stage/hub-update.json" -Encoding UTF8
 New-Item -ItemType Directory -Force -Path "$PSScriptRoot/dist" | Out-Null
-& $Iscc "/DStage=$stage" "/DOutput=$PSScriptRoot/dist" "$PSScriptRoot/installer.iss"
+& $Iscc "/DStage=$stage" "/DOutput=$PSScriptRoot/dist" "/DVersion=$version" "$PSScriptRoot/installer.iss"
 if($LASTEXITCODE){throw 'Installer failed'}
-$exe=Get-Item "$PSScriptRoot/dist/NRFHub-0.2.3-Setup.exe"
+$exe=Get-Item "$PSScriptRoot/dist/NRFHub-$version-Setup.exe"
 $hash=(Get-FileHash -LiteralPath $exe.FullName).Hash.ToLowerInvariant()
-@{schema=1;product='NRFHub';platform='windows-x64';version='0.2.3';url='https://github.com/NimbyRails-France/hub/releases/download/v0.2.3/NRFHub-0.2.3-Setup.exe';sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
+@{schema=1;product='NRFHub';platform='windows-x64';version=$version;url="https://github.com/NimbyRails-France/hub/releases/download/v$version/NRFHub-$version-Setup.exe";sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
 "$hash  $($exe.Name)" | Set-Content "$PSScriptRoot/dist/SHA256SUMS.txt" -Encoding ascii

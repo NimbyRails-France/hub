@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Les scripts de packaging utilisent la version du projet au lieu de numéros écrits en dur.
+
 - Validation Woodpecker et contrôle de cohérence des versions et du changelog.
 
 ## [0.2.3] - 2026-09-18

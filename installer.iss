@@ -1,17 +1,20 @@
 #ifndef Stage
  #error Stage required
 #endif
+#ifndef Version
+ #error Version required
+#endif
 [Setup]
 AppId={{53CA0228-8196-4BF5-B77A-49CB07F9F469}
 AppName=NimbyRails France Hub
-AppVersion=0.2.3
+AppVersion={#Version}
 DefaultDirName={localappdata}\Programs\NimbyRailsFranceHub
 DefaultGroupName=NimbyRails France
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#Output}
-OutputBaseFilename=NRFHub-0.2.3-Setup
+OutputBaseFilename=NRFHub-{#Version}-Setup
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\NRFHub.exe
