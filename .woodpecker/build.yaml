@@ -1,0 +1,12 @@
+# Build on the general agent; no host volumes or production credentials.
+labels:
+  pool: general
+concurrency: 1
+when:
+  - event: [push, manual]
+  - event: tag
+steps:
+  - name: windows-build-and-tests
+    image: univenanne-ci-nimby-windows:20260918
+    commands:
+      - sh .woodpecker/build.sh
