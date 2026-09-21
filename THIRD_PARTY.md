@@ -1,13 +1,17 @@
 # Third-party components
 
-Qt 6.11.2 is dynamically linked under LGPL-3.0. The package contains LGPL/GPL
-license texts and the component/copyright inventories shipped with the Qt kit.
-Users may replace Qt libraries with compatible builds and reverse engineer this
-application for debugging modifications to those libraries.
+The Kotlin Hub no longer distributes Qt or MinGW. Its desktop package contains:
 
-Corresponding source: https://github.com/qt/qtbase/tree/v6.11.2
-and https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/ .
-QtEntryPoint uses the upstream BSD license. MinGW runtime notices, including
-the GCC runtime exception, are provided under licenses/MinGW.
+- Kotlin, kotlinx.coroutines and kotlinx.serialization: Apache-2.0.
+- Compose Multiplatform, AndroidX and Skiko: upstream Apache-2.0 notices.
+- Skia and its bundled dependencies: upstream BSD and third-party notices.
+- Apache Commons Compress, IO, Codec and Lang: Apache-2.0.
+- A bundled OpenJDK runtime: GPL-2.0 with the Classpath Exception and its own notices.
 
-The Hub does not distribute NIMBY Rails game files, saves or original SDL DLLs.
+Dependency JARs retain their META-INF license and notice files. The packaged
+runtime includes its legal directory. Additional component notices are collected
+under licenses/dependencies during packaging, together with the resolved artifact
+inventory. Consult those files for exact versions and copyright holders.
+
+The historical licenses/Qt directory relates only to the archived Hub 0.2 build;
+it is not part of the Kotlin distribution.

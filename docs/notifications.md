@@ -1,35 +1,39 @@
-# Notifications et fenêtre (Hub 0.3)
+# Notifications et fenêtre — Hub Kotlin 0.4
 
-- La croix masque le Hub dans la zone de notification Windows. Les téléchargements et contrôles continuent.
-- Le bouton Windows Réduire conserve le fonctionnement habituel de la barre des tâches.
-- Cliquez sur l’icône NRF pour restaurer la fenêtre. Relancer le raccourci restaure également le Hub existant.
-- Menu **Fenêtre > Plein écran / Fenêtre**, ou **F11**. **Échap** quitte le plein écran. La fenêtre revient à son état normal ou maximisé précédent.
-- **Fenêtre > Quitter le Hub**, ou **Quitter** dans le menu de l’icône, arrête réellement le programme. Cette action attend la fin des opérations en cours.
-- Quand une mise à jour du Hub est prête, cliquez sur **Redémarrer le Hub pour appliquer**. Masquer la fenêtre ne redémarre pas le programme.
-- Les notifications Windows annoncent une nouvelle version d’un projet installé, la fin d’une opération et la mise à jour du Hub prête. Windows peut masquer ces notifications selon ses réglages.
+La croix masque la fenêtre si une zone de notification est disponible. Cliquer
+sur l'icône ou relancer le Hub restaure la fenêtre existante. Le bouton Réduire
+reste disponible ; F11 bascule le plein écran, Échap restaure l'état précédent.
+Le menu Fenêtre ou le menu de l'icône permet de quitter complètement le Hub.
+Une transaction d'installation en cours doit se terminer avant de quitter.
 
-## Livraison des événements
+Le mode développeur conserve le catalogue GitHub et le relais ntfy, mais suspend
+l'application automatique des mises à jour. Les changements de mode invalident
+les anciennes opérations réseau ; leurs résultats tardifs ne peuvent pas
+remplacer une sélection locale. Les paquets de développement ont des destinations
+séparées et ne sont jamais ciblés par une mise à jour distante.
 
-Les trois dépôts publics `NimbyRails-France/sdk`, `tco` et `hub` ont un webhook GitHub actif pour les événements `release` :
+Le Hub découvre les dépôts officiels puis leurs releases,
+au démarrage et toutes les 15 minutes. Il sélectionne le canal enregistré pour
+chaque projet et pour le Hub, sans catalogue central ni basculement entre canaux.
+Le flux HTTPS `https://ntfy.sh/nrf-hub-releases-v1-67e49b30/json` déclenche aussi
+une vérification, au plus une fois toutes les cinq minutes. Après une déconnexion, le délai
+augmente de 2 secondes à 5 minutes. Les vérifications reportées pendant une
+opération sont reprises par le contrôle périodique.
 
-```
-https://ntfy.sh/nrf-hub-releases-v1-67e49b30?template=yes&message=release&cache=no
-```
+Le sujet ntfy est public et le relais voit l'adresse IP du client. Ses événements
+ne sont pas authentifiés et ne fournissent jamais d'instructions d'installation :
+le Hub ne télécharge que les URL issues de manifestes officiels validés.
+Les tailles, SHA-256, chemins et versions restent contrôlés.
 
-Le relais ntfy transforme le JSON GitHub en un simple signal `release`. Le Hub maintient une connexion HTTPS sortante au flux JSON du même sujet. Aucun port entrant, compte ntfy ou service Windows supplémentaire n’est nécessaire.
+Une mise à jour du Hub est téléchargée seulement pour l'application Windows
+empaquetée et si les mises à jour automatiques sont actives. Elle est appliquée
+à la sortie ou avec Redémarrer. Le mode développeur bloque aussi une mise à jour
+déjà prête. Aucun service ni démarrage automatique Windows n'est ajouté.
 
-Le relais reçoit les événements des dépôts publics et l’adresse IP des clients abonnés. Le sujet est public : **ses événements ne sont pas authentifiés et ne sont jamais des instructions d’installation**. Le Hub ignore tout contenu reçu, puis relit uniquement les manifestes des releases officielles sur GitHub. Les empreintes SHA-256, tailles et contraintes de compatibilité restent vérifiées avant installation.
+## Tests
 
-Le Hub découvre les dépôts publics officiels et sélectionne les releases du canal choisi pour chacun : stable, bêta ou alpha. SDK, TCO et mods fournissent `project.json` dans leur release ; le Hub utilise `hub-latest.json` dans sa propre release. Il ne lit plus le catalogue central.
-
-Les événements rapprochés sont regroupés avec au plus une vérification toutes les cinq minutes. Une installation en cours reporte le contrôle. La connexion se rétablit automatiquement avec un délai croissant de 2 secondes à 5 minutes. Le contrôle périodique des projets toutes les 15 minutes et du Hub toutes les 6 heures reste actif en secours. Une limite de requêtes GitHub est affichée et respectée avant toute nouvelle tentative.
-
-Le Hub doit être lancé, éventuellement masqué. **Quitter** arrête aussi la réception ; au prochain lancement, une vérification complète récupère les versions éventuellement manquées. Il n’est pas lancé automatiquement au démarrage Windows.
-
-Références : [webhooks GitHub](https://docs.github.com/en/rest/repos/webhooks), [publication et modèles ntfy](https://docs.ntfy.sh/publish/#message-templating), [flux JSON ntfy](https://docs.ntfy.sh/subscribe/api/).
-
-## Vérification
-
-`ctest --test-dir build --output-on-failure` teste la validation des manifestes, la sélection des canaux, le classement des préversions, les préférences indépendantes et les fonctions de fenêtre.
-
-Pour un test réel, lancer `NRFHub.exe --network-test`. Le programme utilise un profil de test distinct, désactive les installations automatiques et vérifie trois manifestes officiels en 25 secondes. Il ne nécessite pas de publication fictive ni de message envoyé au relais. Ce test dépend du réseau et ne fait pas partie des tests hors ligne.
+`gradlew desktopTest` couvre la politique du mode développeur, l'ignorance d'une
+réponse tardive, la persistance et les contrôles de l'interface Compose.
+Après `gradlew prepareRuntime`, la CLI `fr.nimby.hub.MainKt --network-test` vérifie
+les vrais manifestes GitHub, sans installation ni abonnement durable au relais.
+Les scénarios Windows du gestionnaire utilisent exclusivement des dossiers de test.

@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.4.0]
+
+### Nouveautés
+- Navigation séparée pour les mods, utilitaires, SDK, téléchargements et paramètres ; les chemins et fonctions locales apparaissent uniquement en mode développeur.
+- Profils Jouer / Développer : sélection d'une origine par projet et d'un SDK de test, avec restauration du SDK et des mods habituels à la sortie du mode développeur.
+- Compilation via le wrapper Gradle du projet, SDK Kotlin sélectionnable et préparation séparée ; aucun lancement silencieux d'un ancien résultat après un échec.
+- Redémarrage de NIMBY Rails par fermeture normale, puis activation du profil ; aucun arrêt forcé du jeu.
+- Le catalogue reste disponible en développement ; l'application automatique des mises à jour est suspendue et les versions locales sont protégées.
+- Un paquet local peut être installé avec son manifeste et son archive ZIP, sans publication GitHub.
+- L'interface est reconstruite avec Compose ; le projet Kotlin Multiplatform se développe dans IntelliJ avec Gradle.
+
+### Compatibilité
+- Reprise des installations et des réglages existants, y compris les canaux Stable, Bêta et Alpha de chaque projet.
+- Conservation de l'installation Windows, du retour à la version précédente, des jonctions du jeu et des raccourcis.
+- L'application Windows autonome inclut Java ; Qt et les outils C++ ne sont plus requis.
+
 ## [0.3.1] - 2026-09-18
 
 ### Améliorations

@@ -89,3 +89,45 @@ $p.loaderApi=1;$p.module='FixtureMod.dll';Run $true
 if(!(Test-Path "$root/game/NRFMods/fixture-migration/FixtureMod.dll")){throw 'Older Hub installation was not registered with NRF Loader'}
 $req.action='remove';Run $true
 Write-Output 'PASS: upgrade native mod installed by an older Hub to NRF Loader registration'
+
+# SDK transaction: a failing new loader must restore the old distribution.
+$req.destination="$root/installed-sdk";$p.id='fixture-sdk';$p.kind='sdk';$p.version='1.0.0'
+$p.Remove('modId');$p.Remove('module');$p.loaderApi=1
+New-Item -ItemType Directory -Path "$root/package/Fixture/loader" -Force | Out-Null
+[IO.File]::WriteAllText("$root/package/Fixture/loader/install-proxy.ps1",'param($Action,$GameDirectory,$SourceDirectory); exit 0')
+$zip=Archive;$req.action='install';$req.archive=$zip;$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+Run $true
+[IO.File]::WriteAllText("$root/package/Fixture/loader/install-proxy.ps1",'param($Action,$GameDirectory,$SourceDirectory); if($Action -eq "Install"){exit 7}; exit 0')
+$zip=Archive;$req.archive=$zip;$p.version='1.1.0';$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+Run $false
+$restored=Get-Content -LiteralPath "$root/installed-sdk/.nrf-project.json" -Raw | ConvertFrom-Json
+if($restored.version -ne '1.0.0'){throw 'Failed SDK promotion did not restore the previous distribution'}
+$req.action='remove';Run $true
+Write-Output 'PASS: failed SDK loader installation restores previous distribution'
+
+# A junction inside an owned directory must never be traversed on removal.
+$req.destination="$root/linked-tree";$p.id='fixture-links';$p.kind='tco';$p.Remove('loaderApi');$p.version='1.0.0'
+$req.action='install';Run $true
+New-Item -ItemType Directory -Path "$root/foreign-data" | Out-Null
+[IO.File]::WriteAllText("$root/foreign-data/keep.txt",'foreign data')
+New-Item -ItemType Junction -Path "$root/linked-tree/unsafe" -Target "$root/foreign-data" | Out-Null
+$req.action='remove';Run $false
+if([IO.File]::ReadAllText("$root/foreign-data/keep.txt") -ne 'foreign data'){throw 'Foreign data was changed'}
+[IO.Directory]::Delete("$root/linked-tree/unsafe")
+Run $true
+Write-Output 'PASS: reparse-point protection preserves foreign data'
+
+# A development package must not register links or replace the normal SDK proxy.
+$req.action='install';$req.detached=$true;$req.origin='local'
+$req.destination="$root/detached-sdk";$p.id='sdk';$p.kind='sdk';$p.loaderApi=1
+[IO.File]::WriteAllText("$root/package/Fixture/loader/install-proxy.ps1",'param($Action,$GameDirectory,$SourceDirectory); [IO.File]::WriteAllText((Join-Path $GameDirectory "proxy-called.txt"),$Action); exit 0')
+$zip=Archive;$req.archive=$zip;$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
+Run $true
+if(Test-Path "$root/game/proxy-called.txt"){throw 'Detached SDK activated its proxy'}
+$detached=Get-Content -LiteralPath "$root/detached-sdk/.nrf-project.json" -Raw | ConvertFrom-Json
+if($detached.origin -ne 'local'){throw 'Local origin was not recorded'}
+$req.destination="$root/detached-mod";$p.id='detached-mod';$p.kind='native-mod';$p.modId='DetachedMod';$p.module='FixtureMod.dll'
+Run $true
+if(Test-Path "$root/game/NRFMods/detached-mod"){throw 'Detached mod registered with loader'}
+if(Test-Path "$root/native-mods/DetachedMod"){throw 'Detached mod registered resources'}
+Write-Output 'PASS: development SDK and mod preparation never activates the proxy or registers game links'

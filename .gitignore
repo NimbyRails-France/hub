@@ -6,14 +6,9 @@
 /install/
 /CMakeUserPresets.json
 *.log
-
-# Isolated CI dependencies
+/.gradle/
+/.kotlin/
 .ci/
-
 .release-plan.json
-
-dist/
-
 nrf-package-*/
-
 __pycache__/

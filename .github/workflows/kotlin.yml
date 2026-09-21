@@ -1,0 +1,85 @@
+name: Kotlin Hub
+on:
+  push:
+    branches: [main, alpha, beta]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Validate version and publication intent
+        id: plan
+        shell: pwsh
+        env:
+          CI_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          CI_COMMIT_BRANCH: ${{ github.ref_name }}
+          CI_PIPELINE_EVENT: ${{ github.event_name }}
+          CI_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python .woodpecker/check-release.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $plan = Get-Content .release-plan.json -Raw | ConvertFrom-Json
+          "publish=$($plan.publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - name: Tests and Windows installer
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File package.ps1 -Iscc 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Prepare notes and release plan
+        shell: pwsh
+        run: |
+          python .woodpecker/check-release.py --notes | Set-Content dist/RELEASE_NOTES.md -Encoding utf8
+          Copy-Item .release-plan.json dist/release-plan.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-hub
+          path: dist/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: build/gradle/reports/tests
+
+  publish:
+    needs: windows
+    if: needs.windows.outputs.publish == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-hub
+          path: dist
+      - name: Publish the verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version dist/release-plan.json)
+          channel=$(jq -r .channel dist/release-plan.json)
+          extra=()
+          if [ "$channel" != stable ]; then extra+=(--prerelease --latest=false); fi
+          # Create a draft with every asset; publish only after successful upload.
+          gh release create "v$version" "dist/NRFHub-$version-Setup.exe" dist/hub-latest.json dist/SHA256SUMS.txt \
+            --target "$RELEASE_COMMIT" --title "NRF Hub $version" --notes-file dist/RELEASE_NOTES.md --draft "${extra[@]}"
+          gh release edit "v$version" --draft=false

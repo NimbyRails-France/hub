@@ -6,12 +6,19 @@ au format `X.Y.Z`, `X.Y.Z-alpha.N` ou `X.Y.Z-beta.N`, `url`, `sha256`, `size`, `
 Le ZIP contient un unique dossier racine nommé `rootFolder`.
 Les URL de projets doivent pointer vers des releases HTTPS de NimbyRails-France.
 
+Le canal stable reçoit uniquement les versions stables. Les canaux alpha et
+bêta choisissent la plus récente entre leur propre canal et les stables, parmi
+les releases proposant un paquet pour la plateforme courante. Par exemple,
+`2.0.0` remplace `2.0.0-beta.3`, mais pas `2.1.0-beta.1`. La préférence de canal
+reste conservée pour les prochaines préversions ; le manifeste garde le canal
+réel de la version distribuée. Cette règle s'applique aussi aux mises à jour du Hub.
+
 Le TCO déclare `sdkMin` et `sdkMaxExclusive`. Le SDK est installé en premier.
 Un mod natif déclare `modId`, identique au nom de sa jonction dans le dossier
 des mods. Son dossier contient `mod.txt`. La compatibilité native des scripts
 doit être testée avant de publier leur hash de jeu dans le manifeste.
 
-Un mod C++ conserve `kind: native-mod` et déclare `loaderApi: 1`, `sdkMin` et
+Un mod chargé par le SDK, y compris un mod Kotlin/Native, conserve `kind: native-mod` et déclare `loaderApi: 1`, `sdkMin` et
 `sdkMaxExclusive`. Le champ `module` nomme sa DLL, par exemple
 `SignalisationFrancaiseRealisteMod.dll`, fournie à la racine. Le gestionnaire
 valide ce nom et écrit `nrf-mod.ini` (`[NRFMod]`, `library=<module>`). Il crée
@@ -25,7 +32,7 @@ Les autres codes signalent un échec. Aucun objet C++ ne traverse cette ABI.
 Le démarrage précède le chargement de la partie : ne pas supposer la simulation disponible.
 Le module doit arrêter ses tâches avant de retourner de Stop. Les DLL restent
 chargées jusqu'à la fermeture du jeu. Retirer un projet du Hub désactive aussi
-son module C++ ; désactiver seulement ses textures dans le jeu ne le désactive pas.
+son module ; désactiver seulement ses textures dans le jeu ne le désactive pas.
 
 Le paquet SDK pour le Hub contient le kit à sa racine et `loader/` avec le
 proxy SDL, le SDK, sa dépendance et le script `install-proxy.ps1`. Il ne contient

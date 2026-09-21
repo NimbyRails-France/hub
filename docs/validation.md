@@ -1,5 +1,8 @@
 # Validation 0.1.0
 
+Document historique de la version native. Pour le Hub Kotlin 0.4, consulter
+[la validation de migration](kotlin-validation.md).
+
 - SDK : 13 tests natifs, dont ABI publique et vérification de version.
 - TCO : contrats des mises à jour, rendu des signaux et invalidation ; SDK 0.5
   rejeté avec code 3, SDK 0.6 accepté avec code 0.

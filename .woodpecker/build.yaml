@@ -1,17 +1,12 @@
-# Verify and package every commit; only an explicit release subject publishes.
+# Portable checks. Windows packaging and publication run on a Windows runner.
 labels:
   pool: general
 concurrency: 1
 when:
   - event: [push, manual]
 steps:
-  - name: windows-build-and-tests
-    image: univenanne-ci-nimby-release:20260918
+  - name: kotlin-desktop-tests
+    image: eclipse-temurin:21-jdk
     commands:
+      - apt-get update && apt-get install -y --no-install-recommends python3 xvfb xauth fontconfig libxi6 libxtst6 libxrender1 libgl1
       - sh .woodpecker/build.sh
-      - python3 .woodpecker/package.py
-  - name: publish-release
-    image: univenanne-ci-nimby-publisher:20260918
-    settings:
-      token:
-        from_secret: nrf_release_token

@@ -1,5 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Hub" type="CMakeRunConfiguration" factoryName="Application" PROJECT_NAME="NRFHub" TARGET_NAME="NRFHub" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="NRFHub" RUN_TARGET_NAME="NRFHub" PROGRAM_PARAMS="" WORKING_DIR="$PROJECT_DIR$/build/clion-Debug" PASS_PARENT_ENVS_2="true">
-    <method v="2"><option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" /></method>
-  </configuration>
-</component>

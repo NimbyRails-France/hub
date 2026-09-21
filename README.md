@@ -1,114 +1,102 @@
 # NimbyRails France Hub
 
-Gestionnaire Windows x64 des projets **NimbyRails-France** : SDK, TCO et mods
-natifs publiés dans les releases GitHub officielles. Version 0.3.0.
+Hub **0.4.0** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
+NimbyRails-France. Le projet s'ouvre dans IntelliJ IDEA et se compile avec Gradle.
 
-## Installer
+## Développer
 
-Télécharger `NRFHub-0.3.0-Setup.exe` dans les
-[releases](https://github.com/NimbyRails-France/hub/releases).
-Choisir le dossier contenant `NIMBYRails.exe`, puis installer le SDK avant le TCO.
-Le bouton d'installation demande le dossier parent de chaque projet.
+JDK 21 installé, wrapper Gradle fourni. Aucun Qt, CMake ou compilateur C++ requis.
 
-- **SDK** : kit de développement et chargeur SDL installés ensemble ; le chargeur
-  est placé dans le dossier du jeu et la SDL originale est sauvegardée.
-- **TCO** : inclut sa propre DLL SDK compatible ; vérifie sa version et son ABI
-  au démarrage. Les installations gérées par le Hub désactivent l'updater autonome du TCO.
-  Un raccourci **Nimby TCO** est créé dans le menu Démarrer, sous **NimbyRails France Hub**,
-  à l'installation, à la mise à jour ou au retour à la version précédente ; il est retiré à la désinstallation.
-- **Mods natifs** : installés dans le dossier choisi, avec une jonction depuis
-  le dossier de mods du jeu. Les projets déclarant `loaderApi: 1` fournissent
-  également une DLL nommée dans le champ `module` : le Hub les enregistre dans `<jeu>/NRFMods/` et le
-  NRF Loader les initialise automatiquement. Un loader compatible est requis.
-  Les projets locaux sans release disponible sont affichés comme non publiés.
+```powershell
+.\gradlew.bat run
+.\gradlew.bat build
+.\gradlew.bat createDistributable
+```
 
-Une ancienne installation du SDK effectuée hors du Hub doit être retirée avec
-son installateur original avant la première installation gérée. Le Hub ne
-s'approprie pas un dossier existant. Fermer le jeu et le TCO avant installation.
+Guide : [IntelliJ, architecture et mode développeur](docs/kotlin-intellij.md).
+L'application autonome inclut Java. `package.ps1` produit l'installateur Windows
+Inno Setup dans `dist/` ; il conserve l'identité d'installation du Hub 0.2.
+Les projets sont découverts directement dans les releases officielles GitHub.
+Chaque projet et le Hub conservent leur choix Stable, Bêta ou Alpha ; il n'y a
+pas de basculement implicite vers un autre canal.
 
-## Mises à jour automatiques
+## Mode développeur
 
-Le Hub découvre les dépôts publics de NimbyRails-France puis consulte leurs releases GitHub, sans lire de catalogue central. Chaque ligne propose Stable, Bêta ou Alpha ; le choix est enregistré indépendamment. Le Hub lui-même dispose aussi de son sélecteur. Le site et le bot ne sont pas des applications installables dans le Hub.
+Les rubriques **Mods**, **Utilitaires**, **SDK**, **Téléchargements** et
+**Paramètres** séparent la bibliothèque, les outils, les opérations et les chemins.
+Activer **Mode développeur** dans les paramètres révèle les projets locaux et
+le choix **Jouer / Développer**. Chaque mod peut utiliser sa version habituelle
+ou un projet local ; le SDK de test peut être une autre version publiée ou un
+paquet local. Le SDK et les mods habituels sont restaurés à la désactivation,
+jeu fermé. Les sources et installations habituelles restent intactes.
 
-Le tag, le canal et le statut prerelease doivent être cohérents. La release retenue est la plus haute version du canal possédant son manifeste. L'absence de version ou une erreur réseau est affichée ; aucune installation ne part d'une réponse non vérifiée. Une préversion n'est jamais proposée sur Stable, et le passage vers une version plus ancienne reste manuel.
+Le Hub appelle les tâches Gradle du projet avec le kit SDK choisi, puis prépare
+une installation de développement distincte. Une compilation échouée bloque
+le lancement de l'ancien résultat. Le catalogue reste consultable ; l'application
+automatique des mises à jour est suspendue en mode développeur.
+**Importer un paquet local** accepte un `project.json` et son ZIP validés.
 
-Le Hub reçoit les événements des releases par webhook GitHub via ntfy, puis vérifie les releases officielles. Il les consulte aussi au démarrage et toutes les 15 minutes. Les rafales du relais sont regroupées (au plus une vérification toutes les cinq minutes). Les réponses API utilisent les ETag ; une limitation GitHub déclenche une attente au lieu d'une boucle de requêtes.
+**Redémarrer NIMBY Rails** demande au jeu de se fermer normalement avant de
+basculer le profil et de le relancer, sans arrêt forcé. Les sauvegardes et
+réglages globaux du jeu restent partagés : utiliser une copie de partie pour
+les essais. Les anciens paquets de développement sont conservés sur disque.
 
-Les projets installés sont mis à jour automatiquement lorsque le jeu et le TCO
-sont fermés et que les dépendances sont compatibles. Le Hub doit être lancé, éventuellement masqué dans la zone de notification ;
-aucun service caché ni démarrage automatique Windows n'est installé.
+## Installer des projets
 
-Chaque téléchargement est vérifié par taille et SHA-256, puis extrait dans un
-dossier de préparation. Les chemins sortant de l'archive et les liens sont rejetés.
-La version précédente reste disponible avec « Revenir à la version précédente ».
-Ce retour suspend les mises à jour automatiques pour éviter de réinstaller la
-version annulée. Les réglages du Hub sont conservés dans les données locales utilisateur.
-Les fichiers de distribution d'un projet sont remplacés ; garder les données
-personnelles hors de ces dossiers ou dans les emplacements prévus par le projet.
+Choisir le dossier de `NIMBYRails.exe`, puis installer le SDK avant les mods/TCO.
+Le Hub demande le dossier parent de chaque nouveau projet. Fermer le jeu, le TCO
+et le chargeur avant de modifier une installation.
 
-Le Hub lui-même recherche `hub-latest.json` dans la release de son canal : téléchargement automatique, contrôle
-d'intégrité, installation lorsque vous choisissez Quitter, ou bouton de redémarrage immédiat.
-La confiance repose sur HTTPS et les dépôts de l'organisation. Les exécutables
-ne sont pas signés avec un certificat Authenticode de publication.
+- **SDK** : kit et chargeur SDL, avec sauvegarde de la SDL originale par l'installateur du SDK.
+- **TCO** : exécutable et SDK compatible, raccourci dans le menu Démarrer.
+- **Mods** : dossier choisi, jonctions vers les mods du jeu et `NRFMods` pour les modules `loaderApi: 1`.
+- **Paquets locaux** : affichés même lorsqu'ils ne sont pas publiés dans le catalogue.
 
-La compatibilité du jeu est validée sur son SHA-256, plus strict qu'un simple
-numéro de version. Un binaire inconnu bloque l'installation ; cela ne signifie
-pas que toutes les fonctions du jeu sont exposées par le SDK expérimental.
+Les téléchargements sont vérifiés par taille et SHA-256. L'extraction rejette les
+chemins dangereux, doublons et liens. Les dossiers non gérés sont protégés.
+La version précédente est conservée ; la restaurer suspend les mises à jour
+automatiques. Conserver les données personnelles hors des fichiers de distribution.
 
-## Fenêtre et notifications
+Les anciens profils `%LOCALAPPDATA%/NimbyRailsFrance/NRFHub/settings.json` et les
+registres `.nrf-project.json` sont repris. Un profil corrompu n'est pas écrasé.
+Un SDK installé hors du Hub doit être retiré avec son installateur original avant
+une première installation gérée.
 
-La croix masque le Hub dans la zone de notification. Son icône permet de restaurer la fenêtre ou de quitter complètement. Le bouton Réduire fonctionne normalement. **F11** bascule en plein écran ; **Échap** revient en fenêtre. Les nouvelles versions et les opérations terminées déclenchent une notification Windows.
+## Synchronisation et bureau
 
-Voir [le fonctionnement du relais et les tests](docs/notifications.md).
+Le catalogue et les releases sont contrôlés au démarrage, toutes
+les 15 minutes et sur signal du relais ntfy. Les événements du relais ne sont que
+des demandes de vérification : seuls les manifestes officiels sont utilisés.
+Hors mode développeur, les projets installés sont mis à jour si l'option automatique est active et si
+jeu, processus et dépendances sont compatibles. La mise à jour du Hub empaqueté
+est vérifiée puis appliquée à la sortie, ou avec le bouton de redémarrage.
 
-## Développement
+La croix masque la fenêtre si une zone de notification est disponible. Le menu
+**Quitter le Hub** arrête réellement le programme. F11 bascule le plein écran,
+Échap le quitte. Aucun service ou démarrage automatique Windows n'est installé.
+Voir [notifications](docs/notifications.md) et [format du catalogue](docs/catalogue.md).
 
-Qt 6.11.2, MinGW x64 et CMake. `build.ps1` construit et déploie les dépendances Qt.
-`package.ps1 -Iscc <chemin>` produit l'installateur Inno Setup et son manifeste.
-`ctest --test-dir build --output-on-failure` et
-`powershell -File tests/manage-tests.ps1` exécutent les validations.
-Les tests du gestionnaire utilisent un faux jeu et des archives temporaires.
+## Plateformes et vérification
 
-## Publication
+Interface Compose et règles communes portables sur les bureaux Windows/Linux/macOS.
+L'installation du SDK et des mods est propre à Windows. Cette migration est
+validée sur Windows ; aucune prise en charge mobile ou Web n'est annoncée.
 
-Publier les assets SDK et TCO dans leurs nouvelles releases, puis modifier
-`catalog.json` avec leurs URL, versions, tailles et empreintes exactes.
-Ne pas remplacer un asset d'une ancienne version. Préparer tous les fichiers en brouillon, puis publier la release complète. Publier le manifeste de
-chaque updater en dernier. Voir `docs/catalogue.md` pour le format des projets.
+`gradlew build` lance les tests Kotlin et, sur Windows, les scénarios d'installation
+avec faux jeu. Les tests ne modifient pas une installation réelle de NIMBY Rails.
+Voir [validation de la migration](docs/kotlin-validation.md).
 
 Les sources sont publiques. Aucune licence générale du projet n'est accordée
 par ce fichier ; les bibliothèques tierces conservent leurs licences respectives.
 
-## Projet CLion indépendant
+## Intégration continue et publication
 
-Profils Debug/Release et configurations Run/Debug : [guide CLion](docs/clion.md).
+`VERSION` alimente Gradle et l'installateur ; le contrôle de release vérifie aussi
+la version du programme et `CHANGELOG.md`. La CI Windows GitHub Actions lance
+les tests, génère l'installateur et conserve les artefacts. Woodpecker effectue
+les tests portables sous Linux. L'ancien cross-build Qt/MinGW a été retiré.
 
-## Versions, changelog et notifications
-
-- La version de référence est dans `VERSION`. Elle doit correspondre à `CMakeLists.txt` ou à `package.json` et son lockfile, selon le projet.
-- Documenter les changements dans `CHANGELOG.md`, sous `[Unreleased]` pendant le développement, puis dans une section `## [X.Y.Z] - AAAA-MM-JJ` au moment de publier.
-- Après une CI réussie, créer le tag `vX.Y.Z` sur le commit vérifié et publier sa release GitHub avec les notes de cette section (`python .woodpecker/check-release.py --notes`). Joindre les artefacts construits avec l'outillage habituel lorsqu'ils sont nécessaires.
-- Les builds Woodpecker sont annoncés dans le salon Discord `1550478726557470791`. Seules les releases GitHub publiées, versionnées et avec des notes sont annoncées dans `1549088597594873907`. Un push ou un tag seul ne publie aucune annonce de mise à jour.
-- La CI refuse les incohérences de versions et les tags sans changelog daté. Les releases en brouillon ne sont pas annoncées. Une correction des notes modifie l'annonce existante.
-
-Woodpecker compile Windows x64 avec MinGW et exécute les tests CTest autonomes sous Wine. Cela ne remplace pas les essais dans le jeu ni la validation native Windows des installateurs et scripts PowerShell.
-
-## Canaux de publication
-
-**Stable** : `vX.Y.Z` (release normale). **Bêta** : `vX.Y.Z-beta.N`. **Alpha** : `vX.Y.Z-alpha.N` (ces deux dernières sont des prereleases GitHub). `N` commence à 1. Le Hub mémorise un canal par projet, stable par défaut, sans basculer vers un autre canal si aucune release n’existe. Un retour vers une version plus ancienne nécessite une installation manuelle.
-
-`VERSION` et le manifeste portent la version complète ; la version CMake garde seulement `X.Y.Z`. Publier le ZIP et son `project.json` dans la **même release**, avec son changelog. Pour le Hub lui-même, publier l’installateur et `hub-latest.json`. Le manifeste donne la taille, le SHA-256, le dossier racine et les règles de compatibilité. Aucun catalogue central ne doit être modifié.
-
-La politique est dans `release-channels.json`. Le contrôle `.woodpecker/check-release.py` refuse les autres canaux. Une release de test n’est jamais marquée comme dernière version stable.
-
-## Publier une mise à jour
-
-- **main** : canal stable.
-- **alpha** : canal alpha.
-- **beta** : canal beta.
-
-Un commit ordinaire lance les vérifications sans publier. Pour publier, préparez la même version dans `VERSION` et les fichiers de version du projet, puis ajoutez une entrée datée dans `CHANGELOG.md`. Décrivez les nouveautés, améliorations et corrections du point de vue des utilisateurs.
-
-Le titre exact du commit de publication est `release X.Y.Z` (exemple : alpha : `release 0.4.0-alpha.1` ; beta : `release 0.4.0-beta.1`). Poussez ce commit sur la branche du canal choisi. La compilation, les tests et la préparation des téléchargements doivent réussir avant la publication GitHub et son annonce Discord. Une version déjà publiée ne peut pas être remplacée : choisissez un nouveau numéro.
-
-Ne créez pas le tag à la main. Les préversions restent dans leur canal et ne remplacent pas la version stable.
+La publication conserve la règle du commit `release X.Y.Z`, sur la branche du
+canal correspondant, avec des notes datées. Après un build Windows réussi, la
+release est préparée en brouillon avec tous ses fichiers, puis publiée. Un commit
+ordinaire ne publie rien. Aucun fichier d'une version déjà publiée n'est remplacé.

@@ -15,6 +15,11 @@ if (root/'package.json').exists():
  if (root/'package-lock.json').exists():
   lock=json.loads((root/'package-lock.json').read_text(encoding='utf-8'))
   assert lock.get('version')==version and lock['packages']['']['version']==version,'package-lock.json differs from VERSION'
+if (root/'build.gradle.kts').exists():
+ gradle=(root/'build.gradle.kts').read_text(encoding='utf-8')
+ assert 'file("VERSION").readText().trim()' in gradle,'Gradle must read VERSION'
+ runtime=(root/'src/commonMain/kotlin/fr/nimby/hub/model/Projects.kt').read_text(encoding='utf-8')
+ assert f'const val HUB_VERSION = "{version}"' in runtime,'Runtime version differs from VERSION'
 changelog=(root/'CHANGELOG.md').read_text(encoding='utf-8')
 section=re.search(r'^## \['+re.escape(version)+r'\](?: - ([^\n]+))?\n(.*?)(?=^## \[|\Z)',changelog,re.M|re.S)
 assert section and len(section.group(2).strip())>10,'Current version needs a meaningful changelog entry'
