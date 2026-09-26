@@ -193,7 +193,7 @@ tasks.register("ciDependencyNotices") {
         root.resolve("ARTIFACTS.txt").writeText(runtime.get().resolvedConfiguration.resolvedArtifacts
             .sortedBy { it.moduleVersion.id.toString() }.joinToString("\n") { "${it.moduleVersion.id} ${it.file.name}" } + "\n")
         runtime.get().files.filter { it.extension == "jar" }.forEach { jar ->
-            java.util.zip.ZipFile(jar).use { zip ->
+            ZipFile(jar).use { zip ->
                 zip.entries().asSequence().filter { !it.isDirectory && Regex("(?i).*(license|notice|copying|copyright).*").matches(it.name) }
                     .forEach { entry ->
                         val target = root.resolve(jar.nameWithoutExtension).apply { mkdirs() }
