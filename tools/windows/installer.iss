@@ -13,6 +13,9 @@ AppName=NimbyRails France Hub
 AppVersion={#Version}
 VersionInfoVersion={#NativeVersion}.0
 AppPublisher=NimbyRails France
+VersionInfoCompany=NimbyRails France
+VersionInfoDescription=Installation de NimbyRails France Hub
+VersionInfoProductName=NimbyRails France Hub
 AppPublisherURL=https://github.com/NimbyRails-France/hub
 DefaultDirName={localappdata}\Programs\NimbyRailsFranceHub
 DefaultGroupName=NimbyRails France
@@ -29,6 +32,7 @@ CloseApplicationsFilter=NRFHub.exe
 RestartApplications=no
 SetupMutex=NRFHubInstaller
 WizardStyle=modern
+SetupLogging=yes
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 [Files]
@@ -39,6 +43,7 @@ Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"
 Filename: "{app}\NRFHub.exe"; Description: "Lancer NRF Hub"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\NRFHub.exe"; Flags: nowait; Check: RelaunchRequested
 [Code]
+#include "replacement.iss"
 function RelaunchRequested: Boolean;
 var I: Integer;
 begin

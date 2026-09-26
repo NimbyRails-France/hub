@@ -14,3 +14,4 @@ apt-get install -y --no-install-recommends fontconfig libxi6 libxtst6 libxrender
 xvfb-run -a sh gradlew check --no-daemon --max-workers=2 --console=plain
 sh gradlew prepareWindowsRuntime prepareWindowsTransactionTests ciDependencyNotices -PnrfTargetWindows=true --no-daemon --max-workers=2 --console=plain
 python3 .ci/sdk/.woodpecker/windows-app.py
+xvfb-run -a python3 .woodpecker/test-installer.py

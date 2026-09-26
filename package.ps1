@@ -10,9 +10,9 @@ New-Item -ItemType Directory -Force -Path "$stage/licenses" | Out-Null
 New-Item -ItemType Directory -Force -Path "$stage/licenses/dependencies" | Out-Null
 Copy-Item -Path "$PSScriptRoot/build/gradle/dependency-notices/*" -Destination "$stage/licenses/dependencies" -Recurse -Force
 New-Item -ItemType Directory -Force -Path "$PSScriptRoot/dist" | Out-Null
-& $Iscc "/DStage=$stage" "/DOutput=$PSScriptRoot/dist" "/DVersion=$version" "$PSScriptRoot/installer.iss"
+& $Iscc "/DStage=$stage" "/DOutput=$PSScriptRoot/dist" "/DVersion=$version" "/DNativeVersion=$($version.Split('-')[0])" "$PSScriptRoot/installer.iss"
 if($LASTEXITCODE){throw 'Installer failed'}
-$exe=Get-Item "$PSScriptRoot/dist/NRFHub-$version-Setup.exe"
+$exe=Get-Item "$PSScriptRoot/dist/NRFHub-$version-windows-x64-Setup.exe"
 $hash=(Get-FileHash -LiteralPath $exe.FullName).Hash.ToLowerInvariant()
-@{schema=1;product='NRFHub';platform='windows-x64';version=$version;url="https://github.com/NimbyRails-France/hub/releases/download/v$version/NRFHub-$version-Setup.exe";sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
+@{schema=1;product='NRFHub';platform='windows-x64';version=$version;url="https://github.com/NimbyRails-France/hub/releases/download/v$version/NRFHub-$version-windows-x64-Setup.exe";sha256=$hash;size=$exe.Length} | ConvertTo-Json | Set-Content "$PSScriptRoot/dist/hub-latest.json" -Encoding UTF8
 "$hash  $($exe.Name)" | Set-Content "$PSScriptRoot/dist/SHA256SUMS.txt" -Encoding ascii
