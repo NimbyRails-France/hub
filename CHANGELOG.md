@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.1] - 2026-09-27
+
+### Windows alpha
+- Nouveau Hub Kotlin avec profils Jouer/Développer, versions locales et catalogue par canal.
+- Réparation vérifiée du chargeur SDK avec sauvegarde et reprise après interruption.
+- Journaux centralisés et export ZIP incluant Windows, jeu, projets, DLL, versions et empreintes SHA-256.
+- Installateur Inno Setup compatible avec les options de mise à jour des anciens Hub Windows.
+- Sélectionner Alpha pour le Hub et séparément pour le SDK, le mod et le TCO. Les projets locaux restent protégés en mode développeur.
+- Première recette en jeu de cette alpha encore à réaliser. Aucun paquet Linux.
+
 ## [0.4.0]
 
 ### Nouveautés

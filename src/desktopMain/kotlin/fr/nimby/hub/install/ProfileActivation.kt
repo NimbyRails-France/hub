@@ -29,9 +29,10 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
         val oldSdk = before["sdk"]?.directory
         val newSdk = after["sdk"]?.directory
         val sdkRegistered = listOf("NimbyRailsFranceSDK-install.json", "NimbyRailsSDK-install.json").any { game.resolve(it).exists() }
+        val replaceSdk = oldSdk != newSdk || (Host.windows && !sdkRegistered && newSdk != null)
         if (sdkRegistered) {
-            require(oldSdk != null) { "Un SDK installé hors du Hub est actif. Retirez-le avec son installateur avant de basculer." }
-            require(windows.ownsSdk(Path(oldSdk), game)) { "Le SDK actif ne correspond plus à l’installation gérée par le Hub" }
+            require(oldSdk != null) { "Un SDK installé hors du Hub est actif. Dans Paramètres, utilisez Réparer le chargeur SDK avant de basculer." }
+            require(windows.ownsSdk(Path(oldSdk), game)) { "Le SDK actif ne correspond plus à l’installation gérée par le Hub. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réappliquez le profil." }
         }
         val oldLinks = links(before)
         val newLinks = links(after)
@@ -43,8 +44,8 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
         var removedSdk = false
         var attemptedSdk = false
         try {
-            if (oldSdk != newSdk && oldSdk != null) { removedSdk = true; windows.proxy(Path(oldSdk), game, "Remove") }
-            if (oldSdk != newSdk && newSdk != null) { attemptedSdk = true; windows.proxy(Path(newSdk), game, "Install") }
+            if (replaceSdk && oldSdk != null) { removedSdk = true; windows.proxy(Path(oldSdk), game, "Remove") }
+            if (replaceSdk && newSdk != null) { attemptedSdk = true; windows.proxy(Path(newSdk), game, "Install") }
             oldLinks.forEach { (link, target) -> if (newLinks[link] != target) windows.removeLink(link, target) }
             newLinks.forEach { (link, target) -> windows.createLink(link, target) }
             persist()
@@ -61,7 +62,7 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
                 journal.deleteIfExists()
             } catch (recovery: Exception) {
                 failure.addSuppressed(recovery)
-                error("Activation échouée ; restauration incomplète. Journal conservé : $journal. ${failure.message} / ${recovery.message}")
+                throw IllegalStateException("Activation échouée ; restauration incomplète. Journal conservé : $journal. ${failure.message} / ${recovery.message}", failure)
             }
             throw failure
         }

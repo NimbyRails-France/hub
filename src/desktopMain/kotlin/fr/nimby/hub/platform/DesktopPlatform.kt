@@ -44,4 +44,4 @@ object Host {
             .firstOrNull { game(it).isRegularFile() } ?: home.resolve(".local/share/Steam/steamapps/common/NIMBY Rails")
     }
 }
-fun desktopPlatform(): DesktopPlatform = if (Host.windows) Windows() else UnixPlatform()
+fun desktopPlatform(log: (String) -> Unit = {}): DesktopPlatform = if (Host.windows) Windows(log = log) else UnixPlatform()

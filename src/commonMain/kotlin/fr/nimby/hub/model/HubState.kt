@@ -9,6 +9,7 @@ data class HubState(
     val status: String = "Prêt",
     val relayStatus: String = "Notifications arrêtées",
     val log: List<String> = emptyList(),
+    val logFile: String = "",
     val readyHubVersion: String? = null,
     val windows: Boolean = true,
     val releaseErrors: Map<String, String> = emptyMap(),

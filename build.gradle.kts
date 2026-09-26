@@ -40,7 +40,7 @@ kotlin {
         }
         val desktopMain by getting {
             dependencies {
-                implementation(compose.desktop.currentOs)
+                implementation(if (providers.gradleProperty("nrfTargetWindows").orNull == "true") compose.desktop.windows_x64 else compose.desktop.currentOs)
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
                 implementation("org.apache.commons:commons-compress:1.27.1")
             }
@@ -164,5 +164,43 @@ tasks.register("prepareRelease") {
             "size" to installer.length(), "sha256" to hash(installer))
         destination.resolve("hub-latest-$platform.json").writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + "\n")
         logger.lifecycle("Release $releaseVersion / $channel / $platform prête dans $destination")
+    }
+}
+
+// CI resolves Windows graphics dependencies on the Linux build host. Tests run
+// first with host dependencies; only this separate staging task feeds jpackage.
+tasks.register<Sync>("prepareWindowsRuntime") {
+    group = "distribution"
+    dependsOn("desktopJar")
+    from(tasks.named("desktopJar"))
+    from(configurations.named("desktopRuntimeClasspath"))
+    into(layout.projectDirectory.dir("build/ci-windows-runtime"))
+    doFirst {
+        require(providers.gradleProperty("nrfTargetWindows").orNull == "true") {
+            "Pass -PnrfTargetWindows=true to stage Windows runtime dependencies."
+        }
+    }
+}
+
+// Include every dependency's embedded license/notice beside the application.
+tasks.register("ciDependencyNotices") {
+    val runtime = configurations.named("desktopRuntimeClasspath")
+    inputs.files(runtime)
+    val destination = layout.projectDirectory.dir("build/ci-dependency-notices")
+    outputs.dir(destination)
+    doLast {
+        val root = destination.asFile.apply { mkdirs() }
+        root.resolve("ARTIFACTS.txt").writeText(runtime.get().resolvedConfiguration.resolvedArtifacts
+            .sortedBy { it.moduleVersion.id.toString() }.joinToString("\n") { "${it.moduleVersion.id} ${it.file.name}" } + "\n")
+        runtime.get().files.filter { it.extension == "jar" }.forEach { jar ->
+            java.util.zip.ZipFile(jar).use { zip ->
+                zip.entries().asSequence().filter { !it.isDirectory && Regex("(?i).*(license|notice|copying|copyright).*").matches(it.name) }
+                    .forEach { entry ->
+                        val target = root.resolve(jar.nameWithoutExtension).apply { mkdirs() }
+                            .resolve(entry.name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+                        zip.getInputStream(entry).use { input -> target.outputStream().use(input::copyTo) }
+                    }
+            }
+        }
     }
 }

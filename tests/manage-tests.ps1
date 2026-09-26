@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $root=[IO.Path]::GetFullPath("$PSScriptRoot/../build/manager-test-"+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path "$root/game","$root/package/Fixture" -Force | Out-Null
@@ -90,20 +90,10 @@ if(!(Test-Path "$root/game/NRFMods/fixture-migration/FixtureMod.dll")){throw 'Ol
 $req.action='remove';Run $true
 Write-Output 'PASS: upgrade native mod installed by an older Hub to NRF Loader registration'
 
-# SDK transaction: a failing new loader must restore the old distribution.
-$req.destination="$root/installed-sdk";$p.id='fixture-sdk';$p.kind='sdk';$p.version='1.0.0'
-$p.Remove('modId');$p.Remove('module');$p.loaderApi=1
+# SDK promotion/rollback is covered by SdkPromotionTest with an injected OS
+# boundary. Fake text DLLs must not bypass the production SDL hash preflight.
+$p.Remove('modId');$p.Remove('module')
 New-Item -ItemType Directory -Path "$root/package/Fixture/loader" -Force | Out-Null
-[IO.File]::WriteAllText("$root/package/Fixture/loader/install-proxy.ps1",'param($Action,$GameDirectory,$SourceDirectory); exit 0')
-$zip=Archive;$req.action='install';$req.archive=$zip;$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
-Run $true
-[IO.File]::WriteAllText("$root/package/Fixture/loader/install-proxy.ps1",'param($Action,$GameDirectory,$SourceDirectory); if($Action -eq "Install"){exit 7}; exit 0')
-$zip=Archive;$req.archive=$zip;$p.version='1.1.0';$p.sha256=(Get-FileHash $zip).Hash.ToLowerInvariant();$p.size=(Get-Item $zip).Length
-Run $false
-$restored=Get-Content -LiteralPath "$root/installed-sdk/.nrf-project.json" -Raw | ConvertFrom-Json
-if($restored.version -ne '1.0.0'){throw 'Failed SDK promotion did not restore the previous distribution'}
-$req.action='remove';Run $true
-Write-Output 'PASS: failed SDK loader installation restores previous distribution'
 
 # A junction inside an owned directory must never be traversed on removal.
 $req.destination="$root/linked-tree";$p.id='fixture-links';$p.kind='tco';$p.Remove('loaderApi');$p.version='1.0.0'

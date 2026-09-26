@@ -100,3 +100,72 @@ La publication conserve la règle du commit `release X.Y.Z`, sur la branche du
 canal correspondant, avec des notes datées. Après un build Windows réussi, la
 release est préparée en brouillon avec tous ses fichiers, puis publiée. Un commit
 ordinaire ne publie rien. Aucun fichier d'une version déjà publiée n'est remplacé.
+
+
+## Journaux et réparation Windows
+
+Dans **Téléchargements → Ouvrir le dossier des journaux**, le Hub ouvre
+`%LOCALAPPDATA%/NimbyRailsFrance/logs/hub`. `hub.log` conserve les messages,
+les erreurs complètes (causes et échecs de restauration compris), les versions
+et les chemins des installations. Chaque entrée est écrite en UTF-8 et le
+fichier est fermé immédiatement. Les heures du fichier sont en UTC.
+Le journal reste disponible après fermeture ; rotation à 2 Mio avec cinq
+archives `hub.log.1` à `hub.log.5`. L'écran conserve les 500 derniers messages
+de la session. Les journaux peuvent contenir des chemins personnels.
+Le mode `--manage` écrit `manager.log` dans le même dossier `logs/hub`.
+`--data-dir` déplace les réglages et sauvegardes de réparation ; les journaux restent dans la racine commune. `NRF_LOG_DIR` permet de changer cette racine pour tous les composants.
+
+Si l'installation signale **Unexpected file contents: …/SDL3.dll**, ne pas
+remplacer cette DLL manuellement. Elle peut être un chargeur déjà installé,
+une DLL modifiée ou une autre version du jeu. Le nouveau contrôle affiche les
+empreintes attendue et présente, ainsi que les fichiers de chargeur détectés.
+
+Jeu fermé, utiliser **Paramètres → Réparer le chargeur SDK**. La réparation :
+
+1. Valide le manifeste `NimbyRailsFranceSDK-install.json` (formats 1 et 2),
+   l'exécutable du jeu, toutes les DLL déclarées et la SDL d'origine sauvegardée.
+2. Copie tous les fichiers concernés dans `NRFHub/repairs/sdk-<identifiant>` et
+   vérifie les empreintes des copies. Aucun script ni DLL de l'ancienne
+   installation n'est exécuté pour réparer.
+3. Enregistre `NRFHub/sdk-repair.json`, remplace SDL atomiquement par la copie
+   d'origine reconnue, puis retire uniquement les fichiers du manifeste dont
+   le contenu est toujours vérifié. Les fichiers étrangers restent intacts.
+4. Conserve la sauvegarde et retire le journal de réparation après succès.
+   Réappliquer ensuite le profil, même s'il était déjà sélectionné, ou
+   réinstaller le SDK depuis le catalogue. Les réglages des profils sont conservés.
+
+Si la réparation est interrompue (DLL verrouillée, fermeture du processus),
+le journal reste présent : reprendre le même bouton après fermeture du jeu.
+Les installations et activations restent bloquées tant que ce journal existe.
+Si un fichier a changé entre-temps, la reprise refuse de l'écraser.
+Un manifeste absent/incohérent, un ancien format non reconnu, une sauvegarde
+invalide ou une version du jeu différente exigent un diagnostic avec le journal ;
+il n'existe pas de bouton pour forcer une DLL inconnue.
+
+`profile-activation.json` reste distinct : il permet de restaurer une bascule
+Jouer/Développer interrompue. Restaurer cette activation avant de réparer SDL.
+Si une ancienne distribution SDK est rangée dans le dossier du jeu, la réparation
+conserve cette distribution ; pour les futures mises à jour, désinstaller cette
+ancienne distribution via le Hub puis choisir un emplacement SDK hors du jeu.
+
+Validation automatisée : `gradlew.bat check`. Les tests couvrent la rotation et
+les accents du journal, les chaînes d'exceptions, le diagnostic SDL, la
+réparation et sa reprise, les refus sans écriture, le retour arrière après échec
+d'installation et la réactivation d'un même profil après réparation. Le jeu
+n'est jamais lancé par ces tests.
+
+
+## Logs de production
+
+Le Hub propose **Téléchargements → Exporter les logs NRF** : un ZIP local
+regroupe les journaux du Hub, du SDK/chargeur, des mods, du TCO et du banc,
+ainsi qu'un résumé des versions. Aucun envoi automatique, aucune sauvegarde de
+jeu ni fichier de réglages n'est inclus. Les logs peuvent contenir des chemins
+personnels et des identifiants d'objets.
+
+Les composants Windows écrivent sous `%LOCALAPPDATA%/NimbyRailsFrance/logs`,
+chacun dans son dossier ; le Hub utilise `%LOCALAPPDATA%/NimbyRailsFrance/logs/hub`.
+Rotation et regroupement des erreurs répétées limitent le volume. Le TCO et le
+banc disposent aussi d'un bouton pour ouvrir leurs journaux.
+Voir [le contrat de diagnostic](../sdk/docs/production-diagnostics.md) pour les
+emplacements, la rétention, les tests et les limites en cas de crash natif.

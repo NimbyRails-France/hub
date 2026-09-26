@@ -19,11 +19,29 @@ class HubController(
     private val scope: CoroutineScope,
     private val source: ReleaseSource = GitHub(),
     private val notify: (String, String) -> Unit = { _, _ -> },
-    private val windows: DesktopPlatform = desktopPlatform(),
+    private val journal: HubLog = HubLog(DiagnosticPaths.hub()),
+    private val windows: DesktopPlatform = desktopPlatform { journal.append(it) },
 ) {
+    val logDirectory: Path get() = journal.directory
+    fun exportLogs(path: Path) = work("Export des journaux NRF…") {
+        val s = state.value.settings
+        val environment = buildString {
+            appendLine("NRF Hub $HUB_VERSION / ${java.time.Instant.now()}")
+            appendLine("OS=${System.getProperty("os.name")} ${System.getProperty("os.arch")} Java=${System.getProperty("java.version")}")
+            appendLine("Profile=${s.appliedProfile} gameSHA256=${state.value.gameHash}")
+            s.installed.values.forEach { appendLine("Installed: ${it.id} ${it.version} origin=${it.origin}") }
+            s.activeDevelopment.values.forEach { appendLine("Development: ${it.id} ${it.version} origin=${it.origin}") }
+        }
+        val count = withContext(Dispatchers.IO) {
+            val technical = if (Host.windows) fr.nimby.hub.platform.windows.WindowsDiagnostics.collect(s)
+                else null
+            DiagnosticBundle.export(path, DiagnosticBundle.roots(store.directory), environment, technical)
+        }
+        log("$count fichiers de diagnostic exportés : $path")
+    }
     private val initial = store.read()
     private val policy = UpdatePolicy(initial.developerMode || initial.legacyProtection, initial.automatic)
-    private val mutable = MutableStateFlow(HubState(initial, windows = windows.supported))
+    private val mutable = MutableStateFlow(HubState(initial, windows = windows.supported, logFile = journal.file.toString()))
     val state: StateFlow<HubState> = mutable.asStateFlow()
     private var synchronization: Job? = null
     private var relay: Job? = null
@@ -34,9 +52,34 @@ class HubController(
     private val updater = SelfUpdater(store.directory, source)
 
     private fun update(transform: (HubState) -> HubState) { mutable.update(transform) }
-    private fun log(text: String) = update { it.copy(status = text, log = (it.log + "${LocalTime.now().withNano(0)}  $text").takeLast(500)) }
+    private fun log(text: String, failure: Throwable? = null) {
+        val warning = journal.append(text, failure)
+        update { it.copy(status = text, log = (it.log + listOfNotNull("${LocalTime.now().withNano(0)}  $text", warning)).takeLast(500)) }
+    }
+    private fun requireRepairFinished() {
+        require(!store.directory.resolve(fr.nimby.hub.platform.windows.WindowsSdkRepair.JOURNAL).exists()) {
+            "Une réparation SDK est interrompue. Reprenez Réparer le chargeur SDK dans Paramètres."
+        }
+    }
+    fun repairSdk() = work("Vérification et réparation du chargeur SDK…") {
+        require(Host.windows) { "Réparation disponible sous Windows uniquement" }
+        require(!store.directory.resolve("profile-activation.json").exists()) { "Restaurez d'abord l'activation interrompue" }
+        val game = Path(state.value.settings.gameDirectory)
+        require(state.value.settings.gameDirectory.isNotBlank()) { "Choisissez le dossier du jeu" }
+        update { it.copy(installing = true) }
+        withContext(NonCancellable + Dispatchers.IO) {
+            fr.nimby.hub.platform.windows.WindowsSdkRepair(store.directory, { windows.requireClosed(it, it) }, { log(it) }).repair(game)
+        }
+    }
+
     private fun settings(value: HubSettings) { store.write(value); update { it.copy(settings = value) } }
     fun start() {
+        log("Démarrage du Hub $HUB_VERSION · journal : ${journal.file}")
+        log("Environnement : OS=${System.getProperty("os.name")} ${System.getProperty("os.version")} ${System.getProperty("os.arch")} Java=${System.getProperty("java.version")} · jeu=${state.value.settings.gameDirectory} · profil=${state.value.settings.appliedProfile}")
+        state.value.settings.installed.values.forEach { log("Projet installé : ${it.id} ${it.version} · ${it.directory}") }
+        state.value.settings.activeDevelopment.values.forEach { log("Projet de développement actif : ${it.id} ${it.version} · ${it.directory}") }
+        if (store.directory.resolve(fr.nimby.hub.platform.windows.WindowsSdkRepair.JOURNAL).exists())
+            log("Réparation SDK interrompue : reprenez Réparer le chargeur SDK dans Paramètres.")
         update { it.copy(recoveryRequired = store.directory.resolve("profile-activation.json").exists()) }
         val steamGame = Host.defaultGame()
         if (state.value.windows && state.value.settings.gameDirectory.isBlank() && Host.game(steamGame).isRegularFile()) {
@@ -140,7 +183,7 @@ class HubController(
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
                     update { it.copy(availableProjects = emptySet()) }
-                    log("Releases indisponibles · installations conservées : ${failure.message}")
+                    log("Releases indisponibles · installations conservées : ${failure.message}", failure)
                     return@launch
                 }
                 if (!policy.accepts(ticket)) return@launch
@@ -151,7 +194,7 @@ class HubController(
                 notifyUpdates()
                 try { updater.check(state.value.settings.selectedChannel("hub")) { policy.accepts(ticket) && policy.canAutoInstall } }
                 catch (cancelled: CancellationException) { throw cancelled }
-                catch (failure: Exception) { log("Mise à jour du Hub : ${failure.message}") }
+                catch (failure: Exception) { log("Mise à jour du Hub : ${failure.message}", failure) }
                 if (updater.version != null && state.value.readyHubVersion == null) notify("Mise à jour du Hub prête", "Vous pouvez redémarrer le Hub pour appliquer la version ${updater.version}.")
                 update { it.copy(readyHubVersion = updater.version) }
                 if (policy.canAutoInstall && policy.accepts(ticket)) {
@@ -165,7 +208,7 @@ class HubController(
                     }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { log("Synchronisation interrompue : ${failure.message}") }
+            catch (failure: Exception) { log("Synchronisation interrompue : ${failure.message}", failure) }
             finally { if (synchronization == currentCoroutineContext()[Job]) update { it.copy(busy = false) } }
         }
     }
@@ -193,7 +236,7 @@ class HubController(
             update { it.copy(busy = true) }
             try { install(project, destination, localArchive, ticket) }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { log("Installation échouée : ${failure.message}"); notify("Installation échouée", project.name) }
+            catch (failure: Exception) { log("Installation échouée : ${failure.message}", failure); notify("Installation échouée", project.name) }
             finally { if (synchronization == currentCoroutineContext()[Job]) update { it.copy(busy = false) } }
         }
     }
@@ -234,15 +277,17 @@ class HubController(
             try {
                 if (action == "rollback") changeAutomatic(false)
                 perform(InstallRequest(action, project, installed.directory, state.value.settings.gameDirectory, store.directory.resolve("operation-result.json").toString()))
-            } catch (failure: Exception) { log("Opération échouée : ${failure.message}") }
+            } catch (failure: Exception) { log("Opération échouée : ${failure.message}", failure) }
             finally { update { it.copy(busy = false) } }
         }
     }
     private suspend fun perform(request: InstallRequest) {
+        requireRepairFinished()
+        log("${request.action} : ${request.project.id} ${request.project.version} · jeu=${request.gameDirectory} · destination=${request.destination}")
         update { it.copy(installing = true) }
         try {
             // Once filesystem promotion begins, cancellation cannot interrupt rollback/recovery.
-            val result = withContext(NonCancellable + Dispatchers.IO) { ProjectManager().execute(request) }
+            val result = withContext(NonCancellable + Dispatchers.IO) { ProjectManager(windows, { log(it) }).execute(request) }
             val installed = state.value.settings.installed.toMutableMap()
             if (result == null) installed.remove(request.project.id) else installed[result.id] = result
             settings(state.value.settings.copy(installed = installed))
@@ -254,12 +299,17 @@ class HubController(
         if (state.value.installing || operation?.isActive == true) { log("Attendez la fin de l'opération avant de quitter."); return false }
         stopNetwork()
         try { updater.installOnExit(policy.canAutoInstall, relaunch) }
-        catch (failure: Exception) { log("Mise à jour du Hub impossible : ${failure.message}"); return false }
+        catch (failure: Exception) { log("Mise à jour du Hub impossible : ${failure.message}", failure); return false }
         return true
     }
-    fun close() { stopNetwork(); gameMonitor?.cancel(); operation?.cancel() }
+    fun close() { log("Fermeture du Hub"); stopNetwork(); gameMonitor?.cancel(); operation?.cancel() }
 
-    fun fail(message: String) { log(message); update { it.copy(operationError = message) } }
+    fun fail(message: String) { log(message); update { it.copy(operationError = "$message\n\nJournal : ${journal.file}") } }
+    private fun fail(failure: Exception) {
+        val message = failure.message ?: "Opération échouée"
+        log(message, failure)
+        update { it.copy(operationError = "$message\n\nJournal : ${journal.file}") }
+    }
     fun clearError() { update { it.copy(operationError = null) } }
 
     fun setPath(key: PathSetting, path: String) {
@@ -291,7 +341,7 @@ class HubController(
         operation = scope.launch {
             try { block() }
             catch (cancelled: CancellationException) { log("Opération annulée"); throw cancelled }
-            catch (failure: Exception) { fail(failure.message ?: "Opération échouée"); update { it.copy(recoveryRequired = store.directory.resolve("profile-activation.json").exists()) } }
+            catch (failure: Exception) { fail(failure); update { it.copy(recoveryRequired = store.directory.resolve("profile-activation.json").exists()) } }
             finally { update { it.copy(busy = false, building = false, installing = false) } }
         }
     }
@@ -355,7 +405,7 @@ class HubController(
         val destination = developmentRoot().resolve("packages/${project.id}-${UUID.randomUUID()}")
         update { it.copy(installing = true) }
         return try {
-            withContext(NonCancellable + Dispatchers.IO) { requireNotNull(ProjectManager().execute(InstallRequest(
+            withContext(NonCancellable + Dispatchers.IO) { requireNotNull(ProjectManager(windows, { log(it) }).execute(InstallRequest(
                 "install", project, destination.toString(), state.value.settings.gameDirectory,
                 store.directory.resolve("operation-result.json").toString(), archive.toString(), state.value.gameHash,
                 detached = true, origin = origin))) }
@@ -419,7 +469,7 @@ class HubController(
             val sdk = s.paths.kotlinSdk
             if (local.project.kind == "native-mod") withContext(Dispatchers.IO) { LocalProjects.kotlinSdk(sdk, local.project) }
             val fingerprint = withContext(Dispatchers.IO) { LocalProjects.fingerprint(local, sdk) }
-            val (project, archive) = LocalProjects.build(local, sdk, ::log)
+            val (project, archive) = LocalProjects.build(local, sdk, { log(it) })
             require(withContext(Dispatchers.IO) { LocalProjects.fingerprint(local, sdk) } == fingerprint) { "Les sources ou le SDK ont changé pendant la compilation. Recompilez." }
             result(BuildResult("Préparation en cours"))
             val record = prepare(project, archive, "local")
@@ -437,6 +487,7 @@ class HubController(
     fun applySelectedProfile() = work("Activation du profil ${state.value.settings.profile.label}…") { activateSelected() }
 
     private suspend fun activateSelected() {
+        requireRepairFinished()
         val snapshot = state.value.settings
         val game = Path(snapshot.gameDirectory)
         if (snapshot.installed.isEmpty() && snapshot.activeDevelopment.isEmpty() && !snapshot.developing) {

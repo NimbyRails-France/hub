@@ -34,6 +34,8 @@ data class HubActions(
     val sdkVersion: (String) -> Unit = {}, val clearError: () -> Unit = {},
     val releaseLegacy: () -> Unit = {},
     val recoverProfile: () -> Unit = {},
+    val openLogs: () -> Unit = {}, val repairSdk: () -> Unit = {},
+    val exportLogs: () -> Unit = {},
 )
 
 private val ink = Color(0xFF1C2634)
@@ -271,6 +273,11 @@ private fun SettingsPage(state: HubState, actions: HubActions) {
             OutlinedButton(actions.recoverProfile, enabled = !state.busy) { Text("Restaurer l’activation précédente") }
             HorizontalDivider()
         }
+        if (state.windows) {
+            SectionTitle("Réparation du chargeur SDK")
+            Text("Restaure la SDL d’origine après vérification du manifeste et des DLL, avec sauvegarde. Fermez le jeu, puis réappliquez le profil ou réinstallez le SDK après réparation.", color = muted)
+            OutlinedButton(actions.repairSdk, enabled = !state.busy && !state.gameRunning && !state.recoveryRequired) { Text("Réparer le chargeur SDK") }
+        }
         SectionTitle("Emplacements")
         PathSetting.entries.filter { !it.development }.forEach { key ->
             DirectoryRow(key.label, s.path(key), !state.busy) { actions.choosePath(key) }
@@ -319,7 +326,12 @@ private fun ActivityPage(state: HubState, actions: HubActions) {
         Text(state.relayStatus, color = muted, style = MaterialTheme.typography.bodySmall)
         state.readyHubVersion?.let { version -> OutlinedButton(actions.restart, enabled = !state.busy && !state.settings.developerMode) { Text("Redémarrer le Hub pour appliquer $version") } }
         HorizontalDivider()
-        SectionTitle("Journal")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            SectionTitle("Journal")
+            OutlinedButton(actions.openLogs) { Text("Ouvrir le dossier des journaux") }
+            OutlinedButton(actions.exportLogs, enabled = !state.busy) { Text("Exporter les logs NRF") }
+        }
+        if (state.logFile.isNotBlank()) SelectionContainer { Text(state.logFile, style = MaterialTheme.typography.bodySmall) }
         SelectionContainer {
             LazyColumn(Modifier.fillMaxSize().background(Color.White, RoundedCornerShape(6.dp)).padding(16.dp), reverseLayout = true) {
                 items(state.log.asReversed()) { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 3.dp)) }

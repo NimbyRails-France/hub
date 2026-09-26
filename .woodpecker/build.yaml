@@ -1,12 +1,16 @@
-# Portable checks. Windows packaging and publication run on a Windows runner.
+# The VPS builds Windows packages; publication requires an explicit release commit.
 labels:
   pool: general
 concurrency: 1
 when:
   - event: [push, manual]
 steps:
-  - name: kotlin-desktop-tests
-    image: eclipse-temurin:21-jdk
+  - name: windows-build-and-tests
+    image: univenanne-ci-nimby-release:20260918
     commands:
-      - apt-get update && apt-get install -y --no-install-recommends python3 xvfb xauth fontconfig libxi6 libxtst6 libxrender1 libgl1
       - sh .woodpecker/build.sh
+  - name: publish-release
+    image: univenanne-ci-nimby-publisher:20260918
+    settings:
+      token:
+        from_secret: nrf_release_token

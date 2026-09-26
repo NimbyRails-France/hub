@@ -14,6 +14,24 @@ import java.nio.file.Path
 class ScreenTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun persistentLogLocationAndRepairAreAccessible() {
+        var opened = false
+        var repaired = false
+        compose.setContent {
+            HubScreen(HubState(HubSettings(), logFile = "C:/NRF/logs/hub.log"),
+                HubActions(openLogs = { opened = true }, repairSdk = { repaired = true }))
+        }
+        compose.onNodeWithText("Téléchargements", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("C:/NRF/logs/hub.log").assertIsDisplayed()
+        compose.onNodeWithText("Ouvrir le dossier des journaux").performClick()
+        org.junit.Assert.assertTrue(opened)
+        capture("persistent-journal")
+        compose.onNodeWithText("Paramètres").performClick()
+        compose.onNodeWithText("Réparer le chargeur SDK").performScrollTo().performClick()
+        org.junit.Assert.assertTrue(repaired)
+        capture("sdk-repair")
+    }
+
     private fun fixture() {
         compose.setContent {
             val mod = Project("signalisationfrancaiserealiste", "native-mod", "0.2.0", name = "Signalisation française réaliste")

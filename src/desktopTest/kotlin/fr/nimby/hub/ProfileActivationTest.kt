@@ -170,6 +170,9 @@ class ProfileActivationTest {
         val f = Fixture(); val p = Platform(); p.running = true
         val normal = mapOf("sdk" to f.record("sdk", "sdk", "normal"))
         p.activeSdk = Path(normal.getValue("sdk").directory)
+        f.game.resolve("NimbyRailsFranceSDK-install.json").writeText("fixture registration")
+        Path(normal.getValue("sdk").directory, "loader").createDirectory().resolve(Host.sdkLibraryNames.first()).writeText("fixture SDK")
+        f.game.resolve(Host.sdkLibraryNames.first()).writeText("fixture SDK")
         val store = SettingsStore(f.root.resolve("data")); store.write(HubSettings(gameDirectory = f.game.toString(), installed = normal))
         val controller = HubController(store, backgroundScope, source, windows = p)
         try {

@@ -7,7 +7,8 @@ import java.util.Base64
 import kotlin.io.path.*
 
 /** Narrow OS adapter: all install policy, validation and transactions live in Kotlin. */
-open class Windows(private val programsDirectory: Path = Path(System.getenv("APPDATA") ?: "", "Microsoft/Windows/Start Menu/Programs")) : DesktopPlatform {
+open class Windows(private val programsDirectory: Path = Path(System.getenv("APPDATA") ?: "", "Microsoft/Windows/Start Menu/Programs"),
+                   private val log: (String) -> Unit = {}) : DesktopPlatform {
     override val supported get() = System.getProperty("os.name").startsWith("Windows")
 
     private fun invoke(action: String, vararg values: Pair<String, String>): String {
@@ -39,10 +40,27 @@ open class Windows(private val programsDirectory: Path = Path(System.getenv("APP
         invoke("shortcut", "id" to id, "destination" to destination.toString(), "programs" to programsDirectory.toString(), "remove" to remove.toString())
     }
     override fun proxy(directory: Path, game: Path, action: String) {
-        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-            "-File", directory.resolve("loader/install-proxy.ps1").toString(), "-Action", action,
-            "-GameDirectory", game.toString(), "-SourceDirectory", directory.resolve("loader").toString()).redirectErrorStream(true).start()
-        val output = process.inputStream.bufferedReader().use { it.readText() }
+        require(action in setOf("Install", "Remove"))
+        log("Chargeur SDK $action · jeu=$game · distribution=$directory")
+        requireClosed(game, directory)
+        val marker = listOf("NimbyRailsFranceSDK-install.json", "NimbyRailsSDK-install.json").any { game.resolve(it).exists() }
+        if (action == "Install" || !marker) {
+            fr.nimby.hub.platform.windows.WindowsSdkRepair.requireClean(game)
+            // A verified repair has already restored SDL and removed the proxy.
+            // The managed SDK distribution still exists and can be reinstalled.
+            if (action == "Remove") return
+        }
+        fun quote(value: String) = "'${value.replace("'", "''")}'"
+        val script = """
+            ${'$'}ErrorActionPreference = 'Stop'
+            ${'$'}OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(${'$'}false)
+            & ${quote(directory.resolve("loader/install-proxy.ps1").toString())} -Action ${quote(action)} -GameDirectory ${quote(game.toString())} -SourceDirectory ${quote(directory.resolve("loader").toString())}
+        """.trimIndent()
+        val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-ExecutionPolicy", "Bypass",
+            "-EncodedCommand", encoded).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        if (output.isNotBlank()) log(output.trimEnd())
         check(process.waitFor() == 0) { "Chargeur SDK : $output" }
     }
 }

@@ -21,24 +21,41 @@ import kotlin.io.path.*
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
+    if (args.firstOrNull() == "--package-smoke-test") {
+        check(System.getProperty("os.name").startsWith("Windows"))
+        // Load the actual Windows Skiko DLL without starting the UI or the game.
+        org.jetbrains.skia.Surface.makeRasterN32Premul(2, 2).use { surface ->
+            check(surface.width == 2)
+        }
+        check(object {}.javaClass.getResource("/windows-diagnostics.ps1") != null)
+        println("PASS: packaged Windows JVM, application classes and native dependencies")
+        return
+    }
     if (args.firstOrNull() == "--network-test") {
         runBlocking {
+            val channel = args.getOrNull(1) ?: "stable"
+            require(channel in listOf("stable", "beta", "alpha")) { "Canal inconnu" }
             val source = GitHub()
-            val catalogue = source.catalogue()
+            val projects = listOf("sdk", "tco", "signalisationfrancaiserealiste")
+            val catalogue = source.catalogue(projects.associateWith { channel })
             println("Découverte GitHub : ${catalogue.projects.size} projets valides, ${catalogue.errors.size} indisponibles")
             catalogue.errors.forEach { (id, error) -> println("$id : $error") }
-            listOf("sdk", "tco").forEach { println("Release officielle : ${source.project(it).let { p -> "${p.id} ${p.version}" }}") }
-            println("Manifeste du Hub : ${source.hub().version}")
+            projects.forEach { println("Release officielle : ${source.project(it, channel).let { p -> "${p.id} ${p.version}" }}") }
+            println("Manifeste du Hub : ${source.hub(channel).version}")
         }
         return
     }
     if (args.firstOrNull() == "--manage") {
+        val journal = HubLog(DiagnosticPaths.hub(), "manager.log")
         try {
             val request = hubJson.decodeFromString<InstallRequest>(Path(args[1]).jsonText())
-            val platform = args.getOrNull(2)?.takeIf { Host.windows }?.let { Windows(Path(it)) } ?: desktopPlatform()
-            ProjectManager(platform, ::println).execute(request)
+            val platform = args.getOrNull(2)?.takeIf { Host.windows }?.let { Windows(Path(it)) { text -> journal.append(text) } }
+                ?: desktopPlatform { journal.append(it) }
+            journal.append("${request.action} : ${request.project.id} ${request.project.version} · jeu=${request.gameDirectory} · destination=${request.destination}")
+            ProjectManager(platform) { journal.append(it); println(it) }.execute(request)
+            journal.append("Opération terminée")
             println("Opération terminée")
-        } catch (failure: Exception) { System.err.println(failure.message); exitProcess(1) }
+        } catch (failure: Exception) { journal.append("Opération échouée", failure); System.err.println("${failure.message}\nJournal : ${journal.file}"); exitProcess(1) }
         return
     }
     val dataIndex = args.indexOf("--data-dir")
@@ -46,10 +63,19 @@ fun main(args: Array<String>) {
     data.createDirectories()
     val single = SingleInstance(data)
     if (!single.acquired) { single.activateExisting(); single.close(); return }
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    val applicationLog = HubLog(DiagnosticPaths.hub())
+    val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, failure ->
+        applicationLog.append("Exception non interceptée · ${thread.name}", failure)
+        previousHandler?.uncaughtException(thread, failure)
+    }
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, failure ->
+        applicationLog.append("Erreur de tâche du Hub", failure)
+    })
     var tray: TrayIcon? = null
-    val controller = try { HubController(SettingsStore(data), scope, notify = { title, text -> tray?.displayMessage(title, text, TrayIcon.MessageType.INFO) }) }
+    val controller = try { HubController(SettingsStore(data), scope, notify = { title, text -> tray?.displayMessage(title, text, TrayIcon.MessageType.INFO) }, journal = applicationLog) }
     catch (failure: Exception) {
+        applicationLog.append("Impossible de lire le profil", failure)
         JOptionPane.showMessageDialog(null, "Impossible de lire le profil : ${failure.message}\nVos données sont conservées.", "NRF Hub", JOptionPane.ERROR_MESSAGE)
         single.close(); return
     }
@@ -184,6 +210,18 @@ fun main(args: Array<String>) {
                 clearError = controller::clearError,
                 releaseLegacy = { if (confirm("Autoriser à nouveau les mises à jour des anciennes installations ?\nVérifiez d’abord que vos versions locales ont été conservées séparément.")) controller.releaseLegacyProtection() },
                 recoverProfile = controller::recoverProfile,
+                openLogs = { runCatching {
+                    controller.logDirectory.createDirectories()
+                    Desktop.getDesktop().open(controller.logDirectory.toFile())
+                }.onFailure { controller.fail("Impossible d'ouvrir les journaux : ${it.message}") } },
+                exportLogs = {
+                    val chooser = JFileChooser().apply {
+                        dialogTitle = "Exporter les logs NRF (chemins locaux possibles, aucune sauvegarde du jeu)"
+                        selectedFile = java.io.File("NRF-diagnostics-${java.time.LocalDateTime.now().toString().replace(':', '-')}.zip")
+                    }
+                    if (chooser.showSaveDialog(window) == JFileChooser.APPROVE_OPTION) controller.exportLogs(chooser.selectedFile.toPath())
+                },
+                repairSdk = { if (confirm("Fermez le jeu. Le Hub va vérifier puis sauvegarder le chargeur actuel et restaurer la SDL d’origine. Vous devrez ensuite réappliquer votre profil ou réinstaller le SDK. Continuer ?")) controller.repairSdk() },
             ))
         }
     }

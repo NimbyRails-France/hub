@@ -116,11 +116,13 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
             links(prior).forEach { windows.createLink(it, destination) }
             (links(old) - links(prior).toSet()).forEach { windows.removeLink(it, destination) }
         } catch (failure: Exception) {
-            if (promoted) Files.move(destination, previous)
-            Files.move(swap, destination)
-            links(old).forEach { windows.createLink(it, destination) }
-            (links(prior) - links(old).toSet()).forEach { windows.removeLink(it, destination) }
-            if (old.kind == "sdk") windows.proxy(destination, game, "Install")
+            try {
+                if (promoted) Files.move(destination, previous)
+                Files.move(swap, destination)
+                links(old).forEach { windows.createLink(it, destination) }
+                (links(prior) - links(old).toSet()).forEach { windows.removeLink(it, destination) }
+                if (old.kind == "sdk") windows.proxy(destination, game, "Install")
+            } catch (recovery: Exception) { failure.addSuppressed(recovery) }
             throw failure
         }
         Files.move(swap, previous)
@@ -135,7 +137,7 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
         val archive = Path(request.archive)
         require(archive.fileSize() == project.size && archive.sha256().equals(project.sha256, true)) { "Archive : empreinte ou taille incorrecte" }
         require(old == null || old.kind == project.kind) { "Le type du projet a changé" }
-        if (!request.detached && project.kind == "sdk" && old == null) require(!game.resolve("NimbyRailsSDK-install.json").exists() && !game.resolve("NimbyRailsFranceSDK-install.json").exists()) { "Retirez d'abord le SDK installé hors du Hub avec son installateur" }
+        if (!request.detached && project.kind == "sdk" && old == null) require(!game.resolve("NimbyRailsSDK-install.json").exists() && !game.resolve("NimbyRailsFranceSDK-install.json").exists()) { "Un chargeur SDK est déjà présent hors de cette installation. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réessayez l'installation." }
         destination.parent.createDirectories()
         val stage = Files.createTempDirectory(destination.parent, ".nrf-stage-")
         try {
@@ -183,11 +185,13 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
                     windows.createLink(link, destination); createdLinks.add(link)
                 }
             } catch (failure: Exception) {
-                if (proxyInstalled) windows.proxy(destination, game, "Remove")
-                createdLinks.forEach { windows.removeLink(it, destination) }
-                if (promoted) erase(destination, project.id)
-                if (movedOld) Files.move(previous, destination)
-                if (proxyRemoved) windows.proxy(destination, game, "Install")
+                try {
+                    if (proxyInstalled) windows.proxy(destination, game, "Remove")
+                    createdLinks.forEach { windows.removeLink(it, destination) }
+                    if (promoted) erase(destination, project.id)
+                    if (movedOld) Files.move(previous, destination)
+                    if (proxyRemoved) windows.proxy(destination, game, "Install")
+                } catch (recovery: Exception) { failure.addSuppressed(recovery) }
                 throw failure
             }
             if (!request.detached) shortcut(next, destination)
