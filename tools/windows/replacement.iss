@@ -174,7 +174,12 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then begin
     // ssInstall is after Inno's running-application handling, before copying.
-    try BeginReplacement;
+    try
+      BeginReplacement;
+#ifdef ReplacementFailureTest
+      // Compiled only into the private CI fault-injection installer.
+      RaiseException('Injected CI failure after snapshot');
+#endif
     except
       Note(GetExceptionMessage);
       SuppressibleMsgBox(GetExceptionMessage, mbError, MB_OK, IDOK);

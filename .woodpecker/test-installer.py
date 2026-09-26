@@ -84,6 +84,20 @@ for entry in ['D3Dcompiler_47.dll', 'Qt6Core.dll', 'unknown-obsolete.dll',
     put(TARGET / entry)
 install('legacy-and-unknown-files')
 install('same-version')
+
+# A separately compiled, unpublished installer exercises the failure handler
+# after old files have actually moved. No fault switch enters the release EXE.
+fault = REPORTS / 'fault'
+fault.mkdir()
+wine('/opt/inno/ISCC.exe', '/Qp', '/DStage=' + win(STAGE), '/DOutput=' + win(fault),
+     '/DVersion=' + VERSION, '/DNativeVersion=' + VERSION.split('-')[0],
+     '/DReplacementFailureTest=1', win(ROOT / 'tools/windows/installer.iss'))
+before = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
+install('failure-restores-previous', installer=fault / INSTALLER.name, success=False)
+after = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
+assert before == after, 'Failed replacement did not restore the previous installation'
+assert not BACKUP.exists()
+
 shutil.rmtree(TARGET / 'runtime')
 (TARGET / 'NRFHub.exe').unlink()
 install('missing-runtime-and-launcher')
