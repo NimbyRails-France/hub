@@ -9,7 +9,7 @@
 - Retrait des anciennes DLL Qt et des fichiers obsolètes ; restauration des composants manquants sans toucher aux paramètres, journaux ou projets externes.
 - Sauvegarde transactionnelle, restauration après échec et récupération d'une installation interrompue.
 - Refus de nettoyer un dossier étranger ou une jonction ; journal de migration persistant.
-- Tests du véritable installateur sous Wine dans Woodpecker avant publication.
+- Ajout de tests du véritable installateur sous Wine dans Woodpecker. Pour cette alpha, leur exécution est exceptionnellement désactivée à la demande du mainteneur ; compilation et empaquetage seulement.
 - Métadonnées éditeur « NimbyRails France ». La signature Authenticode reste à configurer ; cette version n'annonce pas un éditeur certifié.
 
 ## [0.4.1-alpha.1] - 2026-09-27
