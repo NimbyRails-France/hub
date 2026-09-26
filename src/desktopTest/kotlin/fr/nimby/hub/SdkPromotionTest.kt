@@ -11,6 +11,11 @@ import kotlin.io.path.*
 import kotlin.test.*
 
 class SdkPromotionTest {
+    @org.junit.Before fun requireWindowsRuntime() {
+        // Host controls the proxy layout. CI runs this class again using its
+        // Windows JVM under Wine; a Linux JVM cannot model that OS contract.
+        org.junit.Assume.assumeTrue("Windows proxy transaction", Host.windows)
+    }
     /** Transaction tests inject the OS boundary; fixture text is never treated
      * as a supported game DLL or passed to the real Windows preflight. */
     private class Platform : Windows() {

@@ -92,9 +92,10 @@ par ce fichier ; les bibliothèques tierces conservent leurs licences respective
 ## Intégration continue et publication
 
 `VERSION` alimente Gradle et l'installateur ; le contrôle de release vérifie aussi
-la version du programme et `CHANGELOG.md`. La CI Windows GitHub Actions lance
-les tests, génère l'installateur et conserve les artefacts. Woodpecker effectue
-les tests portables sous Linux. L'ancien cross-build Qt/MinGW a été retiré.
+la version du programme et `CHANGELOG.md`. Woodpecker sur le VPS lance les tests,
+compile Kotlin et produit l'installateur Windows avec un runtime Windows vérifié.
+Les tests du paquet passent sous Wine ; la recette dans le jeu reste distincte.
+Aucun paquet Linux n'est publié. Voir [la procédure alpha](docs/windows-alpha-release.md).
 
 La publication conserve la règle du commit `release X.Y.Z`, sur la branche du
 canal correspondant, avec des notes datées. Après un build Windows réussi, la

@@ -182,6 +182,13 @@ tasks.register<Sync>("prepareWindowsRuntime") {
     }
 }
 
+tasks.register<Sync>("prepareWindowsTransactionTests") {
+    dependsOn("desktopTestClasses")
+    from(kotlin.targets.getByName("desktop").compilations.getByName("test").output.allOutputs)
+    from(configurations.named("desktopTestRuntimeClasspath"))
+    into(layout.projectDirectory.dir("build/ci-windows-tests"))
+}
+
 // Include every dependency's embedded license/notice beside the application.
 tasks.register("ciDependencyNotices") {
     val runtime = configurations.named("desktopRuntimeClasspath")
