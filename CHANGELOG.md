@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.3] - 2026-09-27
+
+### Distribution sur le serveur NRF
+- Catalogue, historique SDK et téléchargements depuis `https://releases.nimbyrails-france.fr`, sans appel à l'API GitHub ni jeton utilisateur.
+- Canaux Stable/Bêta/Alpha conservés ; contrôle de la taille, de l'empreinte SHA-256 et de l'appartenance du fichier à sa version.
+- Publications atomiques sur le VPS : les fichiers complets sont disponibles avant la mise à jour du catalogue.
+- Historique des releases Windows transféré sur le serveur ; GitHub conservé temporairement pour permettre la mise à jour des anciens Hub.
+
 ## [0.4.1-alpha.2] - 2026-09-27
 
 ### Installation Windows

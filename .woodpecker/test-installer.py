@@ -128,4 +128,9 @@ assert (foreign / 'keep.txt').read_bytes() == b'unrelated data'
 # The installed Windows runtime must also load the actual application after
 # migration. No game connection or user profile is opened by this switch.
 wine(win(TARGET / 'NRFHub.exe'), '--package-smoke-test')
+for channel in ['stable', 'alpha']:
+    # Use the installed Windows JVM while retaining stdout for diagnostics.
+    result = wine(win(TARGET / 'runtime/bin/java.exe'), '-cp', win(TARGET / 'app') + r'\*',
+                  'fr.nimby.hub.MainKt', '--network-test', channel)
+    print(result.stdout.decode(errors='replace'), flush=True)
 print('PASS: migrated Windows launcher and external profile preservation', flush=True)

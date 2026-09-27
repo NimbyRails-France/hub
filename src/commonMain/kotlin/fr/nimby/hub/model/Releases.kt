@@ -51,6 +51,7 @@ object ReleaseSelection {
     }
 
     fun officialAsset(url: String, repo: String, tag: String): Boolean {
+        if (tag.startsWith('v') && DistributionLocation.forRelease(url, repo, tag.removePrefix("v"))) return true
         val prefix = "https://github.com/NimbyRails-France/$repo/releases/download/$tag/"
         if (!url.startsWith(prefix)) return false
         val name = url.removePrefix(prefix)
@@ -65,6 +66,6 @@ object ReleaseSelection {
         require(version == release.version && (channel == null || channel == Versions.channel(version))) { "Version ou canal incohérent avec la release" }
         require(officialAsset(url, repo, release.tag)) { "Asset d'une autre release" }
         val asset = release.assets.firstOrNull { it.url == url && it.state == "uploaded" && it.size == size }
-        require(asset != null && (asset.digest.isNullOrEmpty() || asset.digest.equals("sha256:$hash", true))) { "Taille ou empreinte différente de l'asset GitHub" }
+        require(asset != null && (asset.digest.isNullOrEmpty() || asset.digest.equals("sha256:$hash", true))) { "Taille ou empreinte différente du catalogue" }
     }
 }

@@ -17,7 +17,7 @@ import kotlin.io.path.*
 class HubController(
     private val store: SettingsStore,
     private val scope: CoroutineScope,
-    private val source: ReleaseSource = GitHub(),
+    private val source: ReleaseSource = ReleaseServer(),
     private val notify: (String, String) -> Unit = { _, _ -> },
     private val journal: HubLog = HubLog(DiagnosticPaths.hub()),
     private val windows: DesktopPlatform = desktopPlatform { journal.append(it) },

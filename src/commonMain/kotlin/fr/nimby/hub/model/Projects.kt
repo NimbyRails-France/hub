@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 val hubJson = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
-const val HUB_VERSION = "0.4.1-alpha.2"
+const val HUB_VERSION = "0.4.1-alpha.3"
 
 @Serializable
 data class Project(
@@ -117,7 +117,9 @@ object ProjectRules {
     val module = Regex("[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*\\.(dll|so|dylib)")
     private val officialAsset = Regex("https://github\\.com/NimbyRails-France/[a-zA-Z0-9_-]+/releases/download/[^?#]+")
     fun validModule(value: String?) = value != null && value.length < 200 && module.matches(value)
-    fun officialUrl(value: String) = officialAsset.matches(value)
+    // Legacy GitHub links remain readable for old profiles/imports. The active
+    // server source requires NRF-hosted assets before every network download.
+    fun officialUrl(value: String) = DistributionLocation.official(value) || officialAsset.matches(value)
     fun validate(project: Project, remote: Boolean = true, requireArtifact: Boolean = true) {
         require(identifier.matches(project.id)) { "Identifiant de projet invalide" }
         require(project.platform in setOf("windows-x64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64")) { "Plateforme inconnue" }
@@ -173,7 +175,8 @@ object ProjectRules {
         require(release.installer == null || release.installer == when (release.platform.substringBefore('-')) {
             "windows" -> "jpackage-exe"; "linux" -> "deb"; "macos" -> "dmg"; else -> ""
         }) { "Installateur incompatible avec la plateforme" }
-        require(release.url.startsWith("https://github.com/NimbyRails-France/hub/releases/download/"))
+        require(DistributionLocation.forRelease(release.url, "hub", release.version) ||
+            release.url.startsWith("https://github.com/NimbyRails-France/hub/releases/download/"))
         require(hash.matches(release.sha256) && release.size in 1..536_870_912)
     }
 }

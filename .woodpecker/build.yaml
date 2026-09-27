@@ -14,3 +14,9 @@ steps:
     settings:
       token:
         from_secret: nrf_release_token
+  - name: publish-distribution-server
+    image: python:3.12-alpine
+    volumes:
+      - /opt/docker/nimbyrailsfrance-distribution/storage:/distribution
+    commands:
+      - python .woodpecker/distribution.py

@@ -9,7 +9,7 @@ import fr.nimby.hub.model.*
 import fr.nimby.hub.platform.*
 import fr.nimby.hub.storage.*
 import fr.nimby.hub.ui.*
-import fr.nimby.hub.network.GitHub
+import fr.nimby.hub.network.ReleaseServer
 import kotlinx.coroutines.*
 import java.awt.*
 import java.awt.image.BufferedImage
@@ -35,10 +35,10 @@ fun main(args: Array<String>) {
         runBlocking {
             val channel = args.getOrNull(1) ?: "stable"
             require(channel in listOf("stable", "beta", "alpha")) { "Canal inconnu" }
-            val source = GitHub()
+            val source = ReleaseServer()
             val projects = listOf("sdk", "tco", "signalisationfrancaiserealiste")
             val catalogue = source.catalogue(projects.associateWith { channel })
-            println("Découverte GitHub : ${catalogue.projects.size} projets valides, ${catalogue.errors.size} indisponibles")
+            println("Catalogue NRF : ${catalogue.projects.size} projets valides, ${catalogue.errors.size} indisponibles")
             catalogue.errors.forEach { (id, error) -> println("$id : $error") }
             projects.forEach { println("Release officielle : ${source.project(it, channel).let { p -> "${p.id} ${p.version}" }}") }
             println("Manifeste du Hub : ${source.hub(channel).version}")
