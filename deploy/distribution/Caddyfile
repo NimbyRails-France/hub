@@ -1,0 +1,16 @@
+{
+    admin off
+    auto_https off
+}
+
+# Internal HTTP only; the existing public Caddy owns TLS certificates.
+:8080 {
+    root * /srv
+    log
+    header X-Content-Type-Options nosniff
+    header Cache-Control "no-cache"
+    @private path /.* /.*/* /*.tmp /*.partial
+    respond @private 404
+    respond /healthz "ok" 200
+    file_server
+}

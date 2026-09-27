@@ -1,0 +1,13 @@
+# BEGIN NRF DISTRIBUTION
+nimbyrails-france.fr {
+    encode zstd gzip
+    header X-Content-Type-Options nosniff
+    # Temporary landing page until the website has its own upstream.
+    respond "NimbyRails France - site en preparation." 200
+}
+
+releases.nimbyrails-france.fr {
+    header X-Content-Type-Options nosniff
+    reverse_proxy nrf-releases:8080
+}
+# END NRF DISTRIBUTION
