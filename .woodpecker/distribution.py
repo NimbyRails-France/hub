@@ -30,6 +30,20 @@ def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
+def write_home(public, index):
+    sections = []
+    for repo, releases in sorted(index['projects'].items()):
+        links = ''.join('<li><a href="/releases/' + html.escape(repo) + '/' + html.escape(r['tag_name']) + '/">' +
+                        html.escape(r['tag_name']) + '</a></li>' for r in reversed(releases))
+        sections.append('<h2>' + html.escape(repo) + '</h2><ul>' + links + '</ul>')
+    temporary = public / 'index.tmp'
+    temporary.write_text('<!doctype html><html lang="fr"><meta charset="utf-8">'
+        '<title>NimbyRails France - Releases</title><h1>Publications Windows</h1>'
+        '<p>Paquets officiels NimbyRails France. Choisissez votre projet et votre version.</p>' +
+        ''.join(sections) + '</html>\n', encoding='utf-8')
+    os.replace(temporary, public / 'index.html')
+
+
 def publish(root, repo, version, source, assets, notes, published_at=None):
     root, source = Path(root), Path(source)
     assert repo in PROJECTS and VERSION.fullmatch(version)
@@ -111,6 +125,7 @@ def publish(root, repo, version, source, assets, notes, published_at=None):
                 output.flush()
                 os.fsync(output.fileno())
             os.replace(temporary, catalogue)
+            write_home(public, index)
             print('Published on NRF server:', repo, version, flush=True)
         finally:
             if work.exists():

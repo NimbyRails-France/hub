@@ -1,6 +1,6 @@
 # NimbyRails France Hub
 
-Hub **0.4.0** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
+Hub **0.4.1-alpha.3** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
 NimbyRails-France. Le projet s'ouvre dans IntelliJ IDEA et se compile avec Gradle.
 
 ## Développer
@@ -16,7 +16,8 @@ JDK 21 installé, wrapper Gradle fourni. Aucun Qt, CMake ou compilateur C++ requ
 Guide : [IntelliJ, architecture et mode développeur](docs/kotlin-intellij.md).
 L'application autonome inclut Java. `package.ps1` produit l'installateur Windows
 Inno Setup dans `dist/` ; il conserve l'identité d'installation du Hub 0.2.
-Les projets sont découverts directement dans les releases officielles GitHub.
+Les projets et paquets sont servis par `https://releases.nimbyrails-france.fr`.
+Le Hub n'utilise plus l'API GitHub pour découvrir ou télécharger les versions.
 Chaque projet et le Hub conservent leur choix Stable, Bêta ou Alpha ; il n'y a
 pas de basculement implicite vers un autre canal.
 
@@ -65,8 +66,8 @@ une première installation gérée.
 ## Synchronisation et bureau
 
 Le catalogue et les releases sont contrôlés au démarrage, toutes
-les 15 minutes et sur signal du relais ntfy. Les événements du relais ne sont que
-des demandes de vérification : seuls les manifestes officiels sont utilisés.
+les 15 minutes et lorsqu'une nouvelle génération du catalogue NRF est détectée
+par une requête conditionnelle périodique. Seuls les manifestes officiels sont utilisés.
 Hors mode développeur, les projets installés sont mis à jour si l'option automatique est active et si
 jeu, processus et dépendances sont compatibles. La mise à jour du Hub empaqueté
 est vérifiée puis appliquée à la sortie, ou avec le bouton de redémarrage.

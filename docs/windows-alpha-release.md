@@ -10,9 +10,11 @@ Kotlin JVM embarquent un runtime Windows. Aucun paquet Linux n’est publié.
 2. Pousser les modifications sur `alpha` avec un sujet ordinaire pour valider
    la chaîne sans publication. Consulter les logs Woodpecker jusqu’au résultat final.
 3. Après validation, pousser un commit `release X.Y.Z-alpha.N` sur `alpha`.
-   Le publisher du VPS crée la prérelease, ses paquets et les manifestes Hub.
+   Le publisher du VPS crée la prérelease de compatibilité GitHub, puis dépose
+   les paquets vérifiés et les manifestes sur `releases.nimbyrails-france.fr`.
+   Le catalogue serveur est remplacé après le dépôt complet des fichiers.
    Une erreur de compilation, de test ou de packaging bloque la publication.
-4. Vérifier les assets de la prérelease et leur découverte par le canal Alpha du Hub.
+4. Vérifier les fichiers sur le serveur et leur découverte par le canal Alpha du Hub.
 
 Les tests Windows exécutés sous Wine ne remplacent pas une recette en situation
 réelle sur Windows dans le jeu. Cette recette reste à effectuer par le mainteneur.

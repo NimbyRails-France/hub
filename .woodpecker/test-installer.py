@@ -38,6 +38,15 @@ def put(path, data=b'old payload'):
     path.write_bytes(data)
 
 
+# This worker's Wine prefix omits the 64-bit view queried by Inno, even though
+# the directories exist. Provision only the disposable emulator registry.
+# Inno source: Setup.MainFunc.pas, InitializeSystemDirs / GetPath(rv64Bit).
+for name, value in [('ProgramFilesDir', r'C:\Program Files'),
+                    ('CommonFilesDir', r'C:\Program Files\Common Files')]:
+    wine('reg', 'add', r'HKLM\Software\Microsoft\Windows\CurrentVersion',
+         '/v', name, '/t', 'REG_SZ', '/d', value, '/f', '/reg:64')
+
+
 def digest(path):
     with path.open('rb') as source:
         return hashlib.file_digest(source, 'sha256').hexdigest()
@@ -64,6 +73,10 @@ def install(name, target=TARGET, installer=INSTALLER, success=True):
     result = wine(win(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                   '/DIR=' + win(target), '/LOG=' + win(REPORTS / (name + '.log')), check=False)
     if success:
+        if result.returncode != 0:
+            log = REPORTS / (name + '.log')
+            if log.exists():
+                print(log.read_text(encoding='utf-8-sig', errors='replace')[-10000:], flush=True)
         assert result.returncode == 0, (name, result.returncode, result.stderr[-1000:])
         actual = {str(p.relative_to(target)): digest(p) for p in target.rglob('*')
                   if p.is_file() and not (p.parent == target and
