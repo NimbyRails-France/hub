@@ -41,6 +41,7 @@ data class HubActions(
     val openLogs: () -> Unit = {}, val repairSdk: () -> Unit = {},
     val exportLogs: () -> Unit = {},
     val language: (String) -> Unit = {},
+    val checkGame: () -> Unit = {},
 )
 
 private val ink = Color(0xFF1C2634)
@@ -98,12 +99,16 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
                             else TextButton({ actions.profile(profile) }, enabled = !state.busy) { Text(profile.label) }
                         }
                     }
-                    Button({ actions.launchGame(state.gameRunning) }, enabled = !state.busy && state.windows && state.settings.gameDirectory.isNotBlank()) {
+                    Button({ actions.launchGame(state.gameRunning) }, enabled = !state.busy && state.windows && !state.checkingGame && state.gameHash.isNotBlank()) {
                         Text(if (state.gameRunning) tr("Redémarrer NIMBY Rails") else tr("Lancer NIMBY Rails"))
                     }
                 }
                 HorizontalDivider(color = Color(0xFFE1E5EB))
                 if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.windows && state.gameHash.isBlank() &&
+                    (state.settings.gameDirectory.isBlank() || state.gameIssue != null || state.checkingGame)) {
+                    GameSetup(state, actions)
+                }
                 if (state.settings.profile != state.settings.appliedProfile || state.settings.disableDeveloperAfterApply) {
                     Row(Modifier.fillMaxWidth().background(Color(0xFFFFF1D6)).padding(horizontal = 26.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
@@ -171,6 +176,31 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
 }
 
 @Composable
+private fun GameSetup(state: HubState, actions: HubActions) {
+    Surface(Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 12.dp),
+        color = Color(0xFFECF1FB), shape = RoundedCornerShape(8.dp)) {
+        Column(Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(tr("Préparer votre première installation"), style = MaterialTheme.typography.titleMedium)
+            Text(tr("1. Choisissez le dossier de NIMBY Rails. Le Hub vérifiera le jeu avant l’installation du SDK et des mods."),
+                style = MaterialTheme.typography.bodyMedium)
+            Text(tr("Dans Steam : clic droit sur NIMBY Rails → Gérer → Parcourir les fichiers locaux."),
+                style = MaterialTheme.typography.bodySmall, color = muted)
+            if (state.settings.gameDirectory.isNotBlank()) Text(state.settings.gameDirectory,
+                style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (state.checkingGame) Text(tr("Vérification du jeu…"), color = accent)
+            else state.gameIssue?.let { Text(it.text, color = muted, style = MaterialTheme.typography.bodySmall) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(actions.chooseGame, enabled = !state.busy && !state.checkingGame) { Text(tr("Choisir le dossier du jeu")) }
+                if (state.settings.gameDirectory.isNotBlank()) TextButton(actions.checkGame,
+                    enabled = !state.busy && !state.checkingGame) { Text(tr("Vérifier à nouveau")) }
+            }
+            Text(tr("2. Une fois le jeu reconnu, installez le SDK puis les mods de votre choix."),
+                style = MaterialTheme.typography.bodySmall, color = muted)
+        }
+    }
+}
+
+@Composable
 private fun EmptyLibrary(page: HubPage, development: Boolean) {
     Column(Modifier.fillMaxWidth().padding(vertical = 64.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -225,7 +255,9 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
                 Text(tr("Canal"), modifier = Modifier.weight(1f), color = muted, style = MaterialTheme.typography.bodyMedium)
                 ChannelSelector(s.selectedChannel(project.id), !state.busy) { actions.channel(project.id, it) }
             }
-            Button({ actions.install(project) }, enabled = !state.busy && state.windows && project.id in state.availableProjects && s.appliedProfile == HubProfile.PLAY && !s.legacyProtection,
+            Button({ actions.install(project) }, enabled = !state.busy && state.windows && !state.checkingGame &&
+                ProjectRules.incompatibility(project, state.gameHash, s.installed) == null &&
+                project.id in state.availableProjects && s.appliedProfile == HubProfile.PLAY && !s.legacyProtection,
                 modifier = Modifier.fillMaxWidth()) { Text(if (installed == null) tr("Installer") else tr("Mettre à jour")) }
             if (s.appliedProfile != HubProfile.PLAY) Text(tr("Revenez à Jouer pour modifier l’installation habituelle."), color = muted, style = MaterialTheme.typography.bodySmall)
             installed?.let {

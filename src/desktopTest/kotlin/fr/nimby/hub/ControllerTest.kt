@@ -16,6 +16,34 @@ import kotlin.test.*
 class ControllerTest {
     @AfterTest fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
 
+    @Test fun gameFolderValidationRejectsMissingFilesAndClearsThePreviousHash() = runTest {
+        val root = Files.createTempDirectory("nrf-game-setup-")
+        val store = SettingsStore(root.resolve("profile"))
+        store.write(HubSettings(language = "fr", automatic = false))
+        val source = Source()
+        val controller = HubController(store, backgroundScope, source, journal = HubLog(root.resolve("logs")))
+        try {
+            controller.checkGame(); runCurrent()
+            assertEquals("Choisissez le dossier du jeu", controller.state.value.gameIssue?.text)
+            val game = root.resolve("game").createDirectory()
+            controller.setGame(game.toString()); runCurrent()
+            controller.state.first { !it.checkingGame && it.gameIssue != null }
+            assertTrue(controller.state.value.gameHash.isBlank())
+            val executable = Host.game(game).apply { writeText("fixture game binary") }
+            controller.checkGame(); runCurrent()
+            controller.state.first { !it.checkingGame && it.gameHash.isNotBlank() }
+            assertEquals(executable.sha256(), controller.state.value.gameHash)
+            assertNull(controller.state.value.gameIssue)
+            assertEquals(game.toString(), store.read().gameDirectory)
+            controller.setGame(root.resolve("missing").toString())
+            assertTrue(controller.state.value.gameHash.isBlank())
+            runCurrent()
+            controller.state.first { !it.checkingGame && it.gameIssue != null }
+            assertTrue(controller.state.value.gameHash.isBlank())
+            assertEquals(0, source.downloadCalls)
+        } finally { controller.close() }
+    }
+
     @Test fun catalogueChangeNotifiesEachNewVersionOnceWithoutInstalling() = runTest {
         val root = Files.createTempDirectory("nrf-release-notification-")
         val store = SettingsStore(root)

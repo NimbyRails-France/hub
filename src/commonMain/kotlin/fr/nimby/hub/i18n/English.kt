@@ -2,6 +2,19 @@ package fr.nimby.hub.i18n
 
 // French source messages are stable lookup keys; arguments are formatted only after lookup.
 internal val english = mapOf(
+    "Préparer votre première installation" to "Set up your first installation",
+    "1. Choisissez le dossier de NIMBY Rails. Le Hub vérifiera le jeu avant l’installation du SDK et des mods." to "1. Choose your NIMBY Rails folder. The Hub will check the game before installing the SDK and mods.",
+    "Dans Steam : clic droit sur NIMBY Rails → Gérer → Parcourir les fichiers locaux." to "In Steam: right-click NIMBY Rails → Manage → Browse local files.",
+    "2. Une fois le jeu reconnu, installez le SDK puis les mods de votre choix." to "2. Once the game is identified, install the SDK and then your chosen mods.",
+    "Vérification du jeu…" to "Checking the game…",
+    "Choisir le dossier du jeu" to "Choose game folder",
+    "Vérifier à nouveau" to "Check again",
+    "Choisissez et vérifiez le dossier du jeu avant l’installation" to "Choose and verify the game folder before installing",
+    "Choisissez un dossier de jeu avec un chemin complet" to "Choose a game folder with an absolute path",
+    "Le dossier choisi ne contient pas {0}" to "The selected folder does not contain {0}",
+    "Impossible de lire le jeu dans ce dossier. Choisissez le dossier contenant {0}." to "Cannot read the game in this folder. Choose the folder containing {0}.",
+    "Vérification du jeu échouée : {0}" to "Game verification failed: {0}",
+    "Jeu identifié : {0} · SHA-256={1}" to "Game identified: {0} · SHA-256={1}",
     "Redirection de téléchargement non autorisée" to "Download redirect not allowed",
     "Trop de redirections de téléchargement" to "Too many download redirects",
     "GitHub limite les requêtes. Réessayez plus tard." to "GitHub request limit reached. Try again later.",

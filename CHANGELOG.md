@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Guide la première installation avec le choix du dossier du jeu et les indications pour le retrouver dans Steam.
+- Vérifie le jeu avant d'activer les installations ; distingue un dossier absent ou illisible d'une version incompatible.
+
 ## [0.4.1-alpha.6] - 2026-09-28
 
 - Corrige le blocage au démarrage après une mise à jour depuis l'ancien Hub lorsque certains mods ne sont pas installés.

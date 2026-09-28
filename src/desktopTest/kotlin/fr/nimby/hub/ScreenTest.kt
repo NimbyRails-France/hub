@@ -16,6 +16,31 @@ class ScreenTest {
     @org.junit.After fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
     @get:Rule val compose = createComposeRule()
 
+    @Test fun firstInstallationGuidesFolderSelectionAndBlocksUnverifiedGames() {
+        val supported = "a".repeat(64)
+        val mod = Project("signals", "native-mod", "1.0.0", gameSha256 = listOf(supported))
+        var state by mutableStateOf(HubState(HubSettings(), projects = listOf(mod), availableProjects = setOf(mod.id)))
+        var selected = 0
+        var installed = 0
+        compose.setContent { HubScreen(state, HubActions(chooseGame = { selected++ }, install = { installed++ })) }
+        compose.onNodeWithText("Préparer votre première installation").assertIsDisplayed()
+        compose.onNodeWithText("Installer").assertIsNotEnabled()
+        compose.onNodeWithText("Choisir le dossier du jeu").performScrollTo().performClick()
+        org.junit.Assert.assertEquals(1, selected)
+        // Cancelling the picker leaves the guide and the installation guard in place.
+        compose.onNodeWithText("Installer").assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(settings = state.settings.copy(gameDirectory = "C:/Game"), checkingGame = true) }
+        compose.onNodeWithText("Vérification du jeu…").assertExists()
+        compose.onNodeWithText("Installer").assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(checkingGame = false, gameHash = "b".repeat(64)) }
+        compose.onNodeWithText("Version du jeu non prise en charge").assertExists()
+        compose.onNodeWithText("Installer").assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(gameHash = supported) }
+        compose.onNodeWithText("Préparer votre première installation").assertDoesNotExist()
+        compose.onNodeWithText("Installer").assertIsEnabled().performClick()
+        org.junit.Assert.assertEquals(1, installed)
+    }
+
     @Test fun languageMenuUpdatesTheCurrentPageWithoutChangingDirectories() {
         var settings by mutableStateOf(HubSettings(root = "C:/Étoile {0}"))
         compose.setContent { HubScreen(HubState(settings), HubActions(language = {

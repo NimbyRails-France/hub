@@ -173,6 +173,7 @@ fun main(args: Array<String>) {
             HubScreen(state, HubActions(
                 language = controller::changeLanguage,
                 chooseGame = { choose(tr("Dossier contenant {0}", Host.gameName), true, state.settings.gameDirectory)?.let { controller.setGame(it.toString()) } },
+                checkGame = controller::checkGame,
                 chooseRoot = { choose(tr("Bibliothèque de projets"), true)?.let { controller.setRoot(it.toString()) } },
                 developerMode = controller::changeDeveloperMode,
                 automatic = controller::changeAutomatic,

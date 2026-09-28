@@ -6,6 +6,8 @@ data class HubState(
     val settings: HubSettings,
     val projects: List<Project> = emptyList(),
     val gameHash: String = "",
+    val checkingGame: Boolean = false,
+    val gameIssue: UiText? = null,
     val busy: Boolean = false,
     val installing: Boolean = false,
     val statusMessage: UiText = message("Prêt"),

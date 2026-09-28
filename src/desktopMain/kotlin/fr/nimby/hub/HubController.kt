@@ -53,6 +53,7 @@ class HubController(
     private var periodic: Job? = null
     private var gameMonitor: Job? = null
     private var operation: Job? = null
+    private var gameCheckGeneration = 0L
     private val updater = SelfUpdater(store.directory, this.source)
 
     private fun update(transform: (HubState) -> HubState) { mutable.update(transform) }
@@ -153,6 +154,7 @@ class HubController(
             fail(tr("Désinstallez les projets du jeu actuel avant de changer son dossier.")); return
         }
         settings(state.value.settings.copy(gameDirectory = path))
+        update { it.copy(gameHash = "", gameIssue = null) }
         scope.launch { identifyGame() }
     }
     fun setRoot(path: String) { if (!state.value.busy) settings(state.value.settings.copy(root = path)) }
@@ -160,10 +162,38 @@ class HubController(
         settings(state.value.settings.copy(windowWidth = width.coerceIn(700, 4000), windowHeight = height.coerceIn(500, 3000)))
     }
 
+    fun checkGame() { if (!state.value.busy) scope.launch { identifyGame() } }
+
     private suspend fun identifyGame() {
         val path = state.value.settings.gameDirectory
-        val hash = withContext(Dispatchers.IO) { runCatching { Host.game(Path(path)).sha256() }.getOrDefault("") }
-        if (state.value.settings.gameDirectory == path) update { it.copy(gameHash = hash) }
+        val generation = ++gameCheckGeneration
+        if (path.isBlank()) {
+            update { it.copy(gameHash = "", checkingGame = false, gameIssue = message("Choisissez le dossier du jeu")) }
+            return
+        }
+        update { it.copy(checkingGame = true) }
+        try {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val directory = Path(path)
+                    require(directory.isAbsolute) { tr("Choisissez un dossier de jeu avec un chemin complet") }
+                    val executable = Host.game(directory)
+                    require(executable.isRegularFile()) { tr("Le dossier choisi ne contient pas {0}", Host.gameName) }
+                    executable.sha256()
+                }
+            }
+            // An older read must never validate a folder selected afterwards.
+            if (generation != gameCheckGeneration || state.value.settings.gameDirectory != path) return
+            val hash = result.getOrDefault("")
+            val issue = if (result.isFailure) message("Impossible de lire le jeu dans ce dossier. Choisissez le dossier contenant {0}.", Host.gameName) else null
+            if (state.value.gameHash != hash || state.value.gameIssue != issue) {
+                if (issue != null) log(message("Vérification du jeu échouée : {0}", path), result.exceptionOrNull())
+                else log(message("Jeu identifié : {0} · SHA-256={1}", path, hash))
+            }
+            update { it.copy(gameHash = hash, gameIssue = issue) }
+        } finally {
+            if (generation == gameCheckGeneration) update { it.copy(checkingGame = false) }
+        }
     }
     private fun stopNetwork() { synchronization?.cancel(); relay?.cancel(); periodic?.cancel() }
     private fun resumeNetwork(refreshNow: Boolean = true) {
@@ -271,6 +301,9 @@ class HubController(
         }
         ProjectRules.validate(project, remote = localArchive == null)
         identifyGame()
+        require(state.value.gameHash.isNotBlank()) {
+            state.value.gameIssue?.text ?: tr("Choisissez et vérifiez le dossier du jeu avant l’installation")
+        }
         val reason = ProjectRules.incompatibility(project, state.value.gameHash, state.value.settings.installed)
         require(reason == null) { reason.orEmpty() }
         val archive = localArchive ?: store.directory.resolve("downloads/${UUID.randomUUID()}.zip")

@@ -154,7 +154,8 @@ object ProjectRules {
     }
 
     fun incompatibility(project: Project, gameHash: String, installed: Map<String, InstalledProject>): String? {
-        if (gameHash.isEmpty() || project.gameSha256.none { it.equals(gameHash, true) }) return tr("Version du jeu non prise en charge")
+        if (gameHash.isEmpty()) return tr("Choisissez et vérifiez le dossier du jeu avant l’installation")
+        if (project.gameSha256.none { it.equals(gameHash, true) }) return tr("Version du jeu non prise en charge")
         val sdk = installed["sdk"]
         val loader = sdk?.loaderApi ?: if (sdk != null && Versions.compare(sdk.version, "0.7.2") >= 0) 1 else 0
         if (project.kind != "sdk" && (project.loaderApi ?: 0) > loader) return tr("Mise à jour du NRF Loader requise")
