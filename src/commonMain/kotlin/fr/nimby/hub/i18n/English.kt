@@ -174,7 +174,7 @@ internal val english = mapOf(
     "Les nouveaux emplacements s’appliquent aux prochaines installations. Les projets déjà installés restent à leur emplacement." to "New directories apply to future installations. Already installed projects stay in their current directories.",
     "Mises à jour" to "Updates",
     "Mises à jour automatiques" to "Automatic updates",
-    "Application automatique suspendue pendant le développement." to "Automatic installation is paused during development.",
+    "Le Hub reste à jour. Les mises à jour automatiques du SDK et des mods sont suspendues." to "The Hub stays up to date. Automatic SDK and mod updates are paused.",
     "Installer les versions compatibles lorsque le jeu est fermé." to "Install compatible versions while the game is closed.",
     "Canal du Hub" to "Hub channel",
     "Mode développeur" to "Developer mode",

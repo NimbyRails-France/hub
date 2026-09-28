@@ -383,7 +383,7 @@ private fun SettingsPage(state: HubState, actions: HubActions) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(tr("Mises à jour automatiques"), style = MaterialTheme.typography.bodyMedium)
-                Text(if (s.developerMode) tr("Application automatique suspendue pendant le développement.") else tr("Installer les versions compatibles lorsque le jeu est fermé."), color = muted, style = MaterialTheme.typography.bodySmall)
+                Text(if (s.developerMode) tr("Le Hub reste à jour. Les mises à jour automatiques du SDK et des mods sont suspendues.") else tr("Installer les versions compatibles lorsque le jeu est fermé."), color = muted, style = MaterialTheme.typography.bodySmall)
             }
             Switch(s.automatic, actions.automatic, enabled = !state.busy)
         }
