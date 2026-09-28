@@ -2,16 +2,21 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.8] - 2026-09-28
+
+- Conserve un journal détaillé de chaque installation, y compris les erreurs et le retour à la version précédente, dans le dossier des logs du Hub.
+- Fournit un fichier `installer-latest.log` facile à transmettre pour diagnostiquer une installation échouée.
+- Empêche une installation incomplète d’être annoncée comme réussie ou de lancer le Hub.
+
+Detailed installation and rollback logs are retained alongside Hub logs, with an easy-to-share `installer-latest.log`. Incomplete installations cannot report success or launch the Hub.
+
 ## [0.4.1-alpha.7] - 2026-09-28
 
 - Guide la première installation avec le choix du dossier du jeu et les indications pour le retrouver dans Steam.
 - Vérifie le jeu avant d'activer les installations ; distingue un dossier absent ou illisible d'une version incompatible.
 - Mémorise le dossier choisi et permet de relancer sa vérification, en français comme en anglais.
-- Conserve un journal détaillé de chaque installation, y compris les erreurs et le retour à la version précédente, dans le dossier des logs du Hub.
 
-- Empêche une installation incomplète d’être annoncée comme réussie ou de lancer le Hub.
-
-Guided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods. Detailed installation and rollback logs are retained alongside Hub logs. Incomplete installations cannot report success or launch the Hub.
+Guided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods.
 
 ## [0.4.1-alpha.6] - 2026-09-28
 
