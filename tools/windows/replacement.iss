@@ -178,8 +178,36 @@ begin
   InstallerCheckpoint('copying program files');
 end;
 
-procedure CurStepChanged(CurStep: TSetupStep);
+// Called by the last mandatory file entry, while Inno can still roll back its
+// own files/uninstaller. ssPostInstall is too late for that transaction.
+procedure ValidateInstalledComponents;
 var LauncherPresent, ConfigPresent, RuntimePresent: Boolean;
+begin
+  InstallerCheckpoint('checking installed components');
+  LauncherPresent := LogInstalledComponent('NRFHub.exe');
+  ConfigPresent := LogInstalledComponent('app\NRFHub.cfg');
+  RuntimePresent := LogInstalledComponent('runtime\bin\server\jvm.dll');
+  if not LauncherPresent or not ConfigPresent or not RuntimePresent then begin
+    Note(CustomMessage('MissingComponents'));
+    SnapshotInstallerLog;
+    SuppressibleMsgBox(CustomMessage('MissingComponents'), mbError, MB_OK, IDOK);
+    Abort;
+  end;
+end;
+
+function HubInstallationReady: Boolean;
+begin
+  Result := ReplacementCommitted;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  // Also protect callers against a late commit failure being reported as zero.
+  Result := 0;
+  if not ReplacementCommitted then Result := 1;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then begin
     // ssInstall is after Inno's running-application handling, before copying.
@@ -196,15 +224,7 @@ begin
     end;
   end;
   if CurStep = ssPostInstall then begin
-    InstallerCheckpoint('checking installed components');
-    LauncherPresent := LogInstalledComponent('NRFHub.exe');
-    ConfigPresent := LogInstalledComponent('app\NRFHub.cfg');
-    RuntimePresent := LogInstalledComponent('runtime\bin\server\jvm.dll');
-    if not LauncherPresent or not ConfigPresent or not RuntimePresent then begin
-      Note(CustomMessage('MissingComponents'));
-      SnapshotInstallerLog;
-      RaiseException(CustomMessage('MissingComponents'));
-    end;
+    ValidateInstalledComponents;
     if not SetIniString('hub', 'product', 'NRFHub', ProgramRoot + '\.nrfhub-install.ini') or
        not SetIniString('transaction', 'phase', 'committed', BackupRoot + '\transaction.ini') then begin
       Note(CustomMessage('CommitFailed'));

@@ -9,7 +9,9 @@
 - Mémorise le dossier choisi et permet de relancer sa vérification, en français comme en anglais.
 - Conserve un journal détaillé de chaque installation, y compris les erreurs et le retour à la version précédente, dans le dossier des logs du Hub.
 
-Guided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods. Detailed installation and rollback logs are retained alongside Hub logs.
+- Empêche une installation incomplète d’être annoncée comme réussie ou de lancer le Hub.
+
+Guided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods. Detailed installation and rollback logs are retained alongside Hub logs. Incomplete installations cannot report success or launch the Hub.
 
 ## [0.4.1-alpha.6] - 2026-09-28
 

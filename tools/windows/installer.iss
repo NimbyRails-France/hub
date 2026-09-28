@@ -47,11 +47,11 @@ french.LaunchHub=Lancer NRF Hub
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Also brand shortcuts for CI images that use the stock JDK launcher.
-Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignoreversion
+Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignoreversion; AfterInstall: ValidateInstalledComponents
 [Icons]
 Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"; IconFilename: "{app}\app\NRFHub.ico"
 [Run]
-Filename: "{app}\NRFHub.exe"; Description: "{cm:LaunchHub}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\NRFHub.exe"; Description: "{cm:LaunchHub}"; Flags: nowait postinstall skipifsilent; Check: HubInstallationReady
 Filename: "{app}\NRFHub.exe"; Flags: nowait; Check: RelaunchRequested
 [Code]
 #include "replacement.iss"
@@ -59,7 +59,7 @@ function RelaunchRequested: Boolean;
 var I: Integer;
 begin
  Result := False;
- if not WizardSilent then exit;
+ if not WizardSilent or not HubInstallationReady then exit;
  for I := 1 to ParamCount do
   if CompareText(ParamStr(I), '/RELAUNCH') = 0 then Result := True;
 end;

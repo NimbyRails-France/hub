@@ -83,6 +83,10 @@ def install(name, target=TARGET, installer=INSTALLER, success=True):
     previous_logs = set(logs.glob(f'installer-{VERSION}-*.log'))
     result = wine(win(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                   '/DIR=' + win(target), '/LOG=' + win(REPORTS / (name + '.log')), check=False)
+    if (result.returncode == 0) != success:
+        log = REPORTS / (name + '.log')
+        if log.exists():
+            print(log.read_text(encoding='utf-8-sig', errors='replace')[-18000:], flush=True)
     if success:
         if result.returncode != 0:
             log = REPORTS / (name + '.log')
