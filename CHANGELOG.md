@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.2-alpha.1] - 2026-09-28
+
+- Remplace la publication 0.4.1-alpha.10 avec une nouvelle version pour éviter son classement derrière alpha.9 sur GitHub.
+- Inclut la mise à jour du Hub dans les profils Jouer et Développer, sans mise à jour automatique des SDK et mods de développement.
+- Conserve les corrections de vérification et de réparation des DLL du SDK.
+
+Replaces 0.4.1-alpha.10 with a new version number, retaining Hub self-updates in both profiles and SDK DLL recovery improvements.
+
 ## [0.4.1-alpha.10] - 2026-09-28
 
 - Corrige la mise à jour du Hub en mode développeur, dans les profils Jouer et Développer.
