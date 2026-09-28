@@ -50,7 +50,7 @@ open class Windows(private val programsDirectory: Path = Path(System.getenv("APP
         requireClosed(game, directory)
         val marker = listOf("NimbyRailsFranceSDK-install.json", "NimbyRailsSDK-install.json").any { game.resolve(it).exists() }
         if (action == "Install" || !marker) {
-            fr.nimby.hub.platform.windows.WindowsSdkRepair.requireClean(game)
+            fr.nimby.hub.platform.windows.WindowsSdkRepair.requireClean(game, directory.resolve("loader"))
             // A verified repair has already restored SDL and removed the proxy.
             // The managed SDK distribution still exists and can be reinstalled.
             if (action == "Remove") return

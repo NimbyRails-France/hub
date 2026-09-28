@@ -46,6 +46,38 @@ Les fichiers installés sont comparés au paquet neuf par SHA-256 et le profil
 utilisateur témoin doit rester identique. Cela ne valide pas les pilotes
 graphiques d'un PC Windows réel.
 
+## DLL du SDK et récupération
+
+Le contrôle du Hub et le script du SDK doivent être mis à jour ensemble pour
+la réutilisation de DLL préexistantes. Les anciennes archives conservent leur
+ancien script et peuvent encore refuser ces fichiers.
+
+| Situation | Comportement |
+| --- | --- |
+| DLL absente | Le SDK l'installe et enregistre son empreinte. |
+| DLL préexistante identique au paquet | Réutilisation ; le manifeste v3 la marque comme partagée. Elle reste après retrait ou réparation. |
+| Ancienne DLL reconnue par empreinte | Sauvegarde sous `DLL.nrf-before-sdk`, remplacement et enregistrement dans `replacedFiles` ; restauration des octets précédents au retrait ou à la réparation. |
+| DLL préexistante différente ou absente du paquet | Refus avec chemin et empreintes ; aucune suppression fondée sur le nom. |
+| Mise à jour d'une DLL appartenant au SDK | Retrait vérifié de l'ancienne installation, installation du nouveau paquet ; le Hub restaure la distribution précédente en cas d'échec. |
+| DLL appartenant au SDK disparue | Retrait/réparation possible si le manifeste et une SDL originale vérifiable sont disponibles. |
+| SDL déjà restaurée par Steam | Réparation des restes enregistrés, sans exiger une seconde copie originale si la SDL actuelle est vérifiée. |
+| Installation interrompue | Le manifeste provisoire écrit avant les copies permet à la réparation de vérifier les fichiers présents et les copies temporaires. |
+| Réparation interrompue | Reprise du journal et des sauvegardes vérifiées hors du jeu. |
+| Fichier modifié, jeu changé, sauvegarde invalide ou manifeste ambigu | Refus avant mutation ; diagnostic et conservation des fichiers. |
+
+Le périmètre comprend la SDL proxy, la DLL SDK, pthread, les bridges Texture,
+Signal UI, Automatic Driving, Construction, Clock et Metadata. La SDL originale
+reste un cas distinct : elle n'est jamais remplacée par une DLL quelconque.
+Les DLL étrangères au SDK ne sont pas supprimées.
+
+La migration reconnue initialement est `libwinpthread-1.dll` d'empreinte
+`1179c0c0ed77abb4aa92a14db97f369cdf364d810167d251b0dfe466db004c21`,
+identique à la dépendance du paquet SDK 0.6.6. Le nom seul ne suffit pas.
+Ajouter une empreinte à cette liste exige une identification préalable du fichier.
+
+Une réparation rétablit un état permettant la réinstallation ; elle ne restaure
+pas un fichier mis en quarantaine par l'antivirus et ne désactive pas sa protection.
+
 ## Éditeur et signature
 
 `AppPublisher` et `VersionInfoCompany` identifient le produit comme

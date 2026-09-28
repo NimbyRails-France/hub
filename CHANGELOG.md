@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.9] - 2026-09-28
+
+- Corrige le blocage de l'installation du SDK d? ? l'ancienne DLL pthread reconnue ; aucune suppression manuelle n?cessaire avec le SDK 0.8.0-alpha.4.
+- V?rifie les huit DLL du SDK et des bridges, conserve les fichiers partag?s et restaure les d?pendances remplac?es.
+- R?pare les installations interrompues et les DLL g?r?es manquantes ? partir de manifestes et de sauvegardes v?rifi?s, y compris apr?s restauration de la SDL par Steam.
+- Conserve les DLL inconnues ou modifi?es et fournit un diagnostic pr?cis.
+
+Coordinates with SDK 0.8.0-alpha.4 to preserve shared DLLs, migrate the recognized legacy dependency, and recover interrupted or incomplete installations from verified backups.
+
 ## [0.4.1-alpha.8] - 2026-09-28
 
 - Conserve un journal détaillé de chaque installation, y compris les erreurs et le retour à la version précédente, dans le dossier des logs du Hub.

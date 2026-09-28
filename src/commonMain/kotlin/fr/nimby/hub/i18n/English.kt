@@ -2,6 +2,10 @@ package fr.nimby.hub.i18n
 
 // French source messages are stable lookup keys; arguments are formatted only after lookup.
 internal val english = mapOf(
+    "Sauvegarde de DLL absente ou invalide : {0}" to "DLL backup missing or invalid: {0}",
+    "Plusieurs manifestes SDK présents ; aucun fichier ne sera modifié." to "Multiple SDK manifests found; no files will be changed.",
+    "DLL déjà présente : {0}\nSHA-256 présent : {1}\nSHA-256 du SDK : {2}\nElle ne correspond pas au fichier fourni par ce SDK. Elle a été conservée. Transmettez le journal pour identifier sa provenance." to "DLL already present: {0}\nCurrent SHA-256: {1}\nSDK SHA-256: {2}\nIt does not match the file supplied by this SDK. It has been preserved. Send the log to identify its origin.",
+    "Fichier partagé absent pendant la réparation : {0}. Sauvegarde conservée : {1}" to "Shared file missing during repair: {0}. Backup preserved: {1}",
     "Préparer votre première installation" to "Set up your first installation",
     "1. Choisissez le dossier de NIMBY Rails. Le Hub vérifiera le jeu avant l’installation du SDK et des mods." to "1. Choose your NIMBY Rails folder. The Hub will check the game before installing the SDK and mods.",
     "Dans Steam : clic droit sur NIMBY Rails → Gérer → Parcourir les fichiers locaux." to "In Steam: right-click NIMBY Rails → Manage → Browse local files.",
