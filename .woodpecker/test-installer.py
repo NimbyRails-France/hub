@@ -29,8 +29,14 @@ def win(path):
 
 
 def wine(*args, check=True):
-    return subprocess.run(['wine', *map(str, args)], check=check, timeout=180,
-                          env=dict(os.environ, WINEDEBUG='-all'), capture_output=True)
+    result = subprocess.run(['wine', *map(str, args)], check=False, timeout=180,
+                            env=dict(os.environ, WINEDEBUG='-all'), capture_output=True)
+    if check and result.returncode:
+        # Keep the actual JVM/installer failure, not only Python's exit status.
+        print(result.stdout.decode(errors='replace')[-14000:], flush=True)
+        print(result.stderr.decode(errors='replace')[-14000:], flush=True)
+        result.check_returncode()
+    return result
 
 
 def put(path, data=b'old payload'):
