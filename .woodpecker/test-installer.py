@@ -156,8 +156,23 @@ wine('/opt/inno/ISCC.exe', '/Qp', '/DStage=' + win(missing_stage), '/DOutput=' +
 before = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
 install('missing-component-restores-previous', installer=missing_output / INSTALLER.name, success=False)
 after = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
-assert before == after, 'Missing-component rollback did not restore the previous installation'
+# Inno has already appended its uninstall records at ssPostInstall. Those
+# control files belong to Inno, not our payload snapshot. Verify their actual
+# functionality below instead of demanding byte-identical bookkeeping.
+def payload(files):
+    return {name: value for name, value in files.items()
+            if not (pathlib.Path(name).parent == pathlib.Path('.') and
+                    pathlib.Path(name).name.startswith('unins'))}
+assert payload(before) == payload(after), ('Missing-component rollback changed payload',
+    sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name)))
 assert not BACKUP.exists()
+# Exercise the uninstaller immediately after this late rollback, before any
+# successful repair could hide broken uninstall bookkeeping.
+wine(win(TARGET / 'unins000.exe'), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+assert not (TARGET / 'NRFHub.exe').exists() and not (TARGET / 'app/NRFHub.cfg').exists()
+assert not (TARGET / 'runtime/bin/server/jvm.dll').exists()
+assert_profile()
+install('reinstall-after-rollback-uninstall')
 
 shutil.rmtree(TARGET / 'runtime')
 (TARGET / 'NRFHub.exe').unlink()

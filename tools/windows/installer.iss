@@ -47,7 +47,7 @@ french.LaunchHub=Lancer NRF Hub
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Also brand shortcuts for CI images that use the stock JDK launcher.
-Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignoreversion; AfterInstall: ValidateInstalledComponents
+Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignoreversion
 [Icons]
 Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"; IconFilename: "{app}\app\NRFHub.ico"
 [Run]

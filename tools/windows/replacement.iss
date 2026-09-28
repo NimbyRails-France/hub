@@ -178,8 +178,8 @@ begin
   InstallerCheckpoint('copying program files');
 end;
 
-// Called by the last mandatory file entry, while Inno can still roll back its
-// own files/uninstaller. ssPostInstall is too late for that transaction.
+// Inno owns its uninstall records. This check controls our payload transaction,
+// launch permission and exit status; raising here alone does not fail Setup.
 procedure ValidateInstalledComponents;
 var LauncherPresent, ConfigPresent, RuntimePresent: Boolean;
 begin
@@ -191,7 +191,7 @@ begin
     Note(CustomMessage('MissingComponents'));
     SnapshotInstallerLog;
     SuppressibleMsgBox(CustomMessage('MissingComponents'), mbError, MB_OK, IDOK);
-    Abort;
+    RaiseException(CustomMessage('MissingComponents'));
   end;
 end;
 
