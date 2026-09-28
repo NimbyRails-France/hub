@@ -2,8 +2,13 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.7] - 2026-09-28
+
 - Guide la première installation avec le choix du dossier du jeu et les indications pour le retrouver dans Steam.
 - Vérifie le jeu avant d'activer les installations ; distingue un dossier absent ou illisible d'une version incompatible.
+- Mémorise le dossier choisi et permet de relancer sa vérification, en français comme en anglais.
+
+Guided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods.
 
 ## [0.4.1-alpha.6] - 2026-09-28
 
