@@ -167,9 +167,10 @@ def publish(plan, source, api, commit):
     source = Path(source)
     names = validate_inputs(plan, source, api.repository, commit)
     tag = 'v' + plan['version']
+    title = f"NimbyRails France Hub {plan['version']}" if api.repository == 'NimbyRails-France/hub' else tag
     release = find_release(api, tag)
     if release is None:
-        release = api.request('POST', '/releases', dict(tag_name=tag, target_commitish=commit, name=tag,
+        release = api.request('POST', '/releases', dict(tag_name=tag, target_commitish=commit, name=title,
             body=plan['notes'], draft=True, prerelease=plan['channel'] != 'stable'))
     if release.get('target_commitish') != commit or release['prerelease'] != (plan['channel'] != 'stable') or release.get('body') != plan['notes']:
         raise ValueError('Release already belongs to another build; increment the version')
