@@ -59,6 +59,10 @@ class ControllerTest {
         val controller = HubController(store, backgroundScope, source, journal = HubLog(root.resolve("logs")))
         try {
             controller.start(); runCurrent()
+            // The initial refresh hashes files on Dispatchers.IO. runCurrent()
+            // alone does not finish that work on every host; wait before taking
+            // the log snapshot so this assertion isolates the language change.
+            controller.state.first { !it.busy }
             val before = controller.state.value
             val calls = source.catalogueCalls to source.relayCalls
             controller.changeLanguage("en"); runCurrent()
