@@ -62,6 +62,9 @@ sentinels = {DATA / 'NRFHub/settings.json': b'{"channels":{"hub":"alpha"}}',
 for path, data in sentinels.items():
     put(path, data)
 expected = {str(p.relative_to(STAGE)): digest(p) for p in STAGE.rglob('*') if p.is_file()}
+# Inno adds the shortcut/uninstaller icon separately from the JDK app image.
+# Keep the byte-for-byte payload check exhaustive, including this extra file.
+expected[str(pathlib.Path('app/NRFHub.ico'))] = digest(ROOT / 'src/desktopMain/resources/branding/hub.ico')
 
 
 def assert_profile():

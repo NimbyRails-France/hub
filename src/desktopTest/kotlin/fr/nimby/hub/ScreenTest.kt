@@ -14,6 +14,56 @@ import java.nio.file.Path
 class ScreenTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun localModShowsBuiltSelectedAndActiveSdkSeparately() {
+        val mod = Project("signals", "native-mod", "1.0.0", "Signaux")
+        val result = BuildResult("Prêt à tester", true, sdkVersion = "0.8.0-alpha.1")
+        val settings = HubSettings(developerMode = true, profile = HubProfile.DEVELOP, appliedProfile = HubProfile.DEVELOP,
+            activeDevelopment = mapOf("sdk" to InstalledProject("sdk", "sdk", "0.8.0-alpha.3", "C:/active")),
+            development = DevelopmentSettings(origins = mapOf(mod.id to ModOrigin.LOCAL), builds = mapOf(mod.id to result),
+                prepared = mapOf(mod.id to InstalledProject(mod.id, mod.kind, mod.version, "C:/prepared"))))
+        var state by mutableStateOf(HubState(settings, kotlinKitVersion = "0.8.0-alpha.2"))
+        compose.setContent { HubScreen(state, HubActions()) }
+        compose.onNodeWithText("Compilé avec SDK 0.8.0-alpha.1").assertIsDisplayed()
+        compose.onNodeWithText("SDK du paquet local").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0.8.0-alpha.1").assertExists()
+        compose.onNodeWithText("Prochaine compilation").assertExists()
+        compose.onNodeWithText("0.8.0-alpha.2").assertExists()
+        compose.onNodeWithText("SDK actif dans le jeu").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("0.8.0-alpha.3").assertExists()
+        capture("mod-sdk-provenance")
+        compose.runOnIdle { state = state.copy(kotlinKitVersion = "0.8.0-alpha.4") }
+        compose.onNodeWithText("Compilé avec SDK 0.8.0-alpha.1").assertExists()
+        compose.onNodeWithText("0.8.0-alpha.4").assertExists()
+        // Old/imported packages must never borrow the currently selected kit's version.
+        compose.runOnIdle { state = state.copy(settings = settings.copy(development = settings.development.copy(
+            builds = mapOf(mod.id to result.copy(sdkVersion = ""))))) }
+        compose.onNodeWithText("SDK de compilation non enregistré").assertExists()
+        compose.onNodeWithText("Non enregistré").assertExists()
+    }
+
+    @Test fun sdkSourceBuildAndKitDownloadActionsAreAccessible() {
+        val sdk = Project("sdk", "sdk", "0.8.0-alpha.2", "SDK local")
+        val local = LocalProject(sdk, "C:/dev/nrf/sdk", "C:/dev/nrf/sdk/hub-local.json", "buildSdk", builder = "windows-sdk")
+        val kit = KotlinKit("0.8.0-alpha.1", "windows-x64", "", 1, "")
+        var state by mutableStateOf(HubState(HubSettings(developerMode = true, profile = HubProfile.DEVELOP,
+            channels = mapOf("sdk" to "alpha"), development = DevelopmentSettings(projects = mapOf("sdk" to local))),
+            kotlinKits = listOf(kit), kotlinKitVersion = "0.8.0-alpha.2"))
+        var built = ""
+        var downloaded: KotlinKit? = null
+        compose.setContent {
+            HubScreen(state, HubActions(compile = { built = it }, downloadKotlinKit = { downloaded = it }))
+        }
+        compose.onNodeWithText("SDK", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Construire et préparer le SDK").performScrollTo().performClick()
+        org.junit.Assert.assertEquals("sdk", built)
+        compose.onNodeWithText("Télécharger et utiliser").performScrollTo().performClick()
+        org.junit.Assert.assertEquals(kit, downloaded)
+        capture("sdk-kotlin-download")
+        compose.runOnIdle { state = state.copy(busy = true) }
+        compose.onNodeWithText("Télécharger et utiliser").assertIsNotEnabled()
+        compose.onNodeWithText("Construire et préparer le SDK").assertIsNotEnabled()
+    }
+
     @Test fun persistentLogLocationAndRepairAreAccessible() {
         var opened = false
         var repaired = false

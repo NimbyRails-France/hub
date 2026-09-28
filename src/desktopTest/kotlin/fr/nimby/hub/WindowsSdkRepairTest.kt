@@ -58,6 +58,18 @@ class WindowsSdkRepairTest {
         for ((name, sum) in before.filterKeys { it !in setOf("keep.txt", "NimbyRails.exe") }) assertEquals(sum, backup.resolve(name).sha256())
     }
 
+    @Test fun developmentConstructionBridgeIsVerifiedBackedUpAndRemoved() {
+        val f=Fixture()
+        val name="NimbyConstructionBridge-experimental-v1.dll"
+        f.game.resolve(name).writeText("construction fixture")
+        val hash=f.game.resolve(name).sha256()
+        f.manifest("constructionBridgeSha256" to hash)
+        val backup=f.repair().repair(f.game)
+        assertEquals(hash,backup.resolve(name).sha256())
+        assertFalse(f.game.resolve(name).exists())
+        assertEquals(f.original,f.game.resolve("SDL3.dll").sha256())
+    }
+
     @Test fun unknownModifiedMissingOrUnsafeFilesNeverChangeGame() {
         for (kind in listOf("no-manifest", "dll", "backup", "game", "traversal", "extra", "running")) {
             val f = Fixture()

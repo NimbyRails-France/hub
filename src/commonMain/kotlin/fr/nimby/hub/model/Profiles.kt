@@ -33,10 +33,15 @@ fun HubSettings.path(setting: PathSetting): String = when (setting) {
 @Serializable data class LocalProject(
     val project: Project, val directory: String, val manifest: String,
     val task: String = "", val archive: String = "",
-)
+    val builder: String = "gradle",
+) {
+    val buildsSdk get() = builder == "windows-sdk"
+}
 @Serializable data class BuildResult(
     val status: String = "À compiler", val ready: Boolean = false, val completedAt: String = "",
     val sdkDirectory: String = "", val fingerprint: String = "", val error: String = "",
+    // Snapshot of the successful build's input, never inferred from today's kit.
+    val sdkVersion: String = "",
 )
 @Serializable data class DevelopmentSettings(
     val origins: Map<String, ModOrigin> = emptyMap(),
@@ -47,6 +52,20 @@ fun HubSettings.path(setting: PathSetting): String = when (setting) {
     val sdkVersion: String = "",
     val sharedDataAcknowledged: Boolean = false,
 )
+
+/** A new kit invalidates mod binaries even when the human-readable version is unchanged. */
+fun DevelopmentSettings.withKotlinKitChanged() = copy(builds = builds.mapValues { (id, result) ->
+    if (projects[id]?.project?.kind == "native-mod") result.copy(ready = false, status = "À recompiler avec le nouveau SDK") else result
+})
+
+/** Commit the runtime and kit selection together only after all build/import checks succeed. */
+fun HubSettings.withSuccessfulBuild(local: LocalProject, record: InstalledProject, result: BuildResult, kotlinKit: String? = null): HubSettings {
+    val id = local.project.id
+    val dev = if (kotlinKit != null) development.withKotlinKitChanged() else development
+    return copy(paths = if (kotlinKit != null) paths.copy(kotlinSdk = kotlinKit) else paths,
+        development = dev.copy(projects = dev.projects + (id to local), prepared = dev.prepared + (id to record),
+            origins = dev.origins + (id to ModOrigin.LOCAL), builds = dev.builds + (id to result)))
+}
 
 object ProfileRules {
     fun resolve(settings: HubSettings): Map<String, InstalledProject> {

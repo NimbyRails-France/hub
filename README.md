@@ -1,6 +1,6 @@
 # NimbyRails France Hub
 
-Hub **0.4.1-alpha.3** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
+Hub **0.4.1-alpha.4** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
 NimbyRails-France. Le projet s'ouvre dans IntelliJ IDEA et se compile avec Gradle.
 
 ## Développer
@@ -36,6 +36,12 @@ une installation de développement distincte. Une compilation échouée bloque
 le lancement de l'ancien résultat. Le catalogue reste consultable ; l'application
 automatique des mises à jour est suspendue en mode développeur.
 **Importer un paquet local** accepte un `project.json` et son ZIP validés.
+
+Les mods locaux affichent le **SDK du paquet local** (version enregistrée lors de
+la compilation réussie), le kit choisi pour la **prochaine compilation** et le
+**SDK actif dans le jeu**. Changer de kit ne change pas l'historique du paquet.
+Les paquets importés ou anciens sans cette information indiquent « Non enregistré »
+jusqu'à leur prochaine compilation depuis le Hub.
 
 **Redémarrer NIMBY Rails** demande au jeu de se fermer normalement avant de
 basculer le profil et de le relancer, sans arrêt forcé. Les sauvegardes et
@@ -103,6 +109,44 @@ canal correspondant, avec des notes datées. Après un build Windows réussi, la
 release est préparée en brouillon avec tous ses fichiers, puis publiée. Un commit
 ordinaire ne publie rien. Aucun fichier d'une version déjà publiée n'est remplacé.
 
+
+## Télécharger le kit Kotlin pour créer des mods
+
+Dans **Développer → SDK → SDK pour compiler**, cliquer sur **Télécharger un kit
+Kotlin**, puis **Télécharger et utiliser** pour la version souhaitée. La liste
+suit le canal SDK choisi (stable, bêta ou alpha). Les archives proviennent du
+serveur NRF ; taille, SHA-256, version, cible Windows et contenu du kit sont
+vérifiés avant de sélectionner le dossier. Le téléchargement n'exige pas que le
+jeu soit installé ou fermé. Il ne change pas le SDK actif dans le jeu.
+
+Les kits sont rangés dans `NRFHub/kotlin-kits/`, à côté des réglages du Hub.
+L'ancien kit reste disponible en cas d'erreur. Après changement de kit, recompiler
+les mods locaux et choisir le SDK correspondant pour les essais dans le jeu.
+Un mod se construit depuis ses propres sources : aucun exemple à installer.
+
+## Construire le SDK depuis le Hub
+
+Dans le profil **Développer → SDK → Choisir le projet SDK**, sélectionner la
+racine du dépôt SDK (avec `VERSION`, `CMakeLists.txt` et `hub-local.json`).
+**Construire et préparer le SDK** relit la version des sources, compile le SDK
+Windows Release, exécute ses tests, construit le kit Kotlin et importe le paquet
+du jeu. La version locale apparaît sans attendre une publication sur le serveur.
+
+Le kit est conservé dans un nouveau dossier `sdk/install/hub/sdk-…/kotlin-kit`.
+Le Hub le sélectionne seulement après succès et vérification que sa DLL est
+identique à celle du paquet. Les mods locaux passent alors à **À recompiler avec
+le nouveau SDK**, même si le numéro de version n'a pas changé. Compiler ensuite
+les mods et utiliser **Appliquer le profil** ou **Lancer le jeu**. La construction
+et la préparation sont possibles avec le jeu ouvert ; son activation exige sa
+fermeture. La construction ne publie aucun fichier.
+
+Prérequis : outils CMake/MinGW/Ninja de CLion, Kotlin/Native 2.2.20 et JDK 21.
+Les emplacements habituels sont détectés ; `NRF_CLION_HOME`, `NRF_KOTLIN_HOME` et
+`NRF_JAVA_HOME` permettent de les personnaliser avant de lancer le Hub.
+Le dépôt SDK fournit `tools/windows/build-for-hub.ps1`. Il sérialise ses builds,
+réutilise son cache natif et écrit le reçu `hub-result.json` uniquement à la fin.
+Un échec conserve le kit précédent et les anciens paquets ; il bloque la
+validation du nouveau résultat. Les détails restent dans le journal du Hub.
 
 ## Journaux et réparation Windows
 

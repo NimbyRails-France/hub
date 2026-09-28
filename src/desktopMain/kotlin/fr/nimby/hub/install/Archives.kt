@@ -12,7 +12,9 @@ import kotlin.io.path.*
 object Archives {
     fun extract(archive: Path, stage: Path, rootFolder: String) {
         val root = stage.toAbsolutePath().normalize()
-        val prefix = "$rootFolder/"
+        // Published Kotlin kits are flat ZIPs; game packages retain a mandatory
+        // named root supplied by their validated project manifest.
+        val prefix = if (rootFolder.isEmpty()) "" else "$rootFolder/"
         val names = mutableSetOf<String>()
         var count = 0
         var expanded = 0L

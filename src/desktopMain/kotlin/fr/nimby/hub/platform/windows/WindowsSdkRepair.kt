@@ -28,7 +28,8 @@ class WindowsSdkRepair(private val data: Path, private val requireClosed: (Path)
             "pthreadSha256" to listOf("libwinpthread-1.dll"),
             "textureBridgeSha256" to (1..4).map { "NimbyRailsFranceTextureBridge-experimental-v$it.dll" },
             "signalUiBridgeSha256" to listOf("NimbySignalUiBridge-experimental-v1.dll"),
-            "automaticDrivingBridgeSha256" to listOf("NimbyAutomaticDrivingBridge-v1.dll"))
+            "automaticDrivingBridgeSha256" to listOf("NimbyAutomaticDrivingBridge-v1.dll"),
+            "constructionBridgeSha256" to listOf("NimbyConstructionBridge-experimental-v1.dll"))
         private val names = setOf(SDL, ORIGINAL, MANIFEST, "NimbyRailsFranceSDK.dll") + optional.values.flatten()
 
         private fun plain(path: Path) {

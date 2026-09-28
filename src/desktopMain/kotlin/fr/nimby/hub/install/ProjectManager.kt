@@ -42,9 +42,13 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
         }
         val previous = destination.resolveSibling("${destination.fileName}.nrf-previous")
         val game = Path(request.gameDirectory).toAbsolutePath().normalize()
-        windows.requireClosed(game, destination)
         val old = if (destination.exists(LinkOption.NOFOLLOW_LINKS)) record(destination, request.project.id) else null
         require(!request.detached || (request.action == "install" && old == null)) { "Une préparation doit utiliser un nouveau dossier" }
+        // Detached preparation writes a new package only. It may run while the
+        // game is open, but must never overlap the game or replace any package.
+        if (request.detached) require(!destination.startsWith(game) && !game.startsWith(destination) && !previous.exists()) {
+            "La préparation doit utiliser un dossier neuf, séparé du jeu"
+        } else windows.requireClosed(game, destination)
         val result = when (request.action) {
             "remove" -> { remove(destination, previous, game, requireNotNull(old)); null }
             "rollback" -> rollback(destination, previous, game, requireNotNull(old))
@@ -168,7 +172,7 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
                 }
             }
             stage.resolve(".nrf-project.json").atomicWrite(hubJson.encodeToString(next))
-            windows.requireClosed(game, destination)
+            if (!request.detached) windows.requireClosed(game, destination)
             supportedGame(game, project.gameSha256, request.expectedGameHash)
             if (previous.exists()) erase(previous, project.id)
             var movedOld = false

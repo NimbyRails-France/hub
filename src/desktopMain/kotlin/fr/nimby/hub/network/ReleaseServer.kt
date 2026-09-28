@@ -117,6 +117,9 @@ class ReleaseServer : ReleaseSource {
             catch (_: Exception) { null }
         }
 
+    override suspend fun kotlinKits(channel: String): List<KotlinKit> =
+        KotlinKitReleases.select(index().projects["sdk"].orEmpty(), channel, Host.id)
+
     override suspend fun hub(channel: String): HubRelease {
         val (release, manifest) = manifest("hub", channel)
         val hub = hubJson.decodeFromJsonElement<HubRelease>(manifest).also(ProjectRules::validate)

@@ -86,7 +86,7 @@ class LocalProjectsTest {
         val store = SettingsStore(root.resolve("data"))
         store.write(HubSettings(developerMode = true, profile = HubProfile.DEVELOP, development = DevelopmentSettings(
             projects = mapOf("fixture" to local), origins = mapOf("fixture" to ModOrigin.LOCAL),
-            builds = mapOf("fixture" to BuildResult("Prêt à tester", true)),
+            builds = mapOf("fixture" to BuildResult("Prêt à tester", true, sdkVersion = "0.8.0-alpha.1")),
             prepared = mapOf("fixture" to InstalledProject("fixture", "tco", "1.0.0", root.toString())))))
         val controller = HubController(store, backgroundScope)
         try {
@@ -94,6 +94,7 @@ class LocalProjectsTest {
             controller.state.first { !it.busy }
             assertNotNull(controller.state.value.operationError)
             assertFalse(store.read().development.builds.getValue("fixture").ready)
+            assertEquals("0.8.0-alpha.1", store.read().development.builds.getValue("fixture").sdkVersion)
             assertEquals("previous build", old.readText())
             assertFails { ProfileRules.resolve(store.read()) }
         } finally { controller.close() }

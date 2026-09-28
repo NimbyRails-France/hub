@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,7 @@ data class HubActions(
     val launchTool: (String) -> Unit = {}, val applyProfile: () -> Unit = {},
     val loadSdkVersions: () -> Unit = {}, val installSdk: (Project) -> Unit = {},
     val sdkVersion: (String) -> Unit = {}, val clearError: () -> Unit = {},
+    val loadKotlinKits: () -> Unit = {}, val downloadKotlinKit: (KotlinKit) -> Unit = {},
     val releaseLegacy: () -> Unit = {},
     val recoverProfile: () -> Unit = {},
     val openLogs: () -> Unit = {}, val repairSdk: () -> Unit = {},
@@ -43,7 +45,7 @@ private val muted = Color(0xFF637083)
 private val accent = Color(0xFF315FC1)
 
 @Composable
-fun HubScreen(state: HubState, actions: HubActions) {
+fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
     var page by remember { mutableStateOf(HubPage.MODS) }
     var selected by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
@@ -52,8 +54,11 @@ fun HubScreen(state: HubState, actions: HubActions) {
         outline = Color(0xFFB4BDCA))) {
         Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             Column(Modifier.width(184.dp).fillMaxHeight().background(Color(0xFF192332)).padding(16.dp)) {
-                Text("NRF", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 14.dp, start = 10.dp))
+                Row(Modifier.padding(top = 14.dp, start = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (logo != null) Image(logo, contentDescription = "Logo NimbyRails France", modifier = Modifier.size(40.dp))
+                    Text("NRF", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
                 Text("NIMBY RAILS FRANCE", color = Color(0xFF9EADC0), style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(start = 10.dp, bottom = 36.dp))
                 HubPage.entries.forEach { item ->
@@ -133,6 +138,11 @@ fun HubScreen(state: HubState, actions: HubActions) {
                                                         if (state.settings.developing && state.settings.development.origins[item.id] == ModOrigin.LOCAL)
                                                             Text("Local", color = accent, style = MaterialTheme.typography.labelMedium)
                                                     }
+                                                    if (item.kind == "native-mod" && state.settings.developing && state.settings.development.origins[item.id] == ModOrigin.LOCAL) {
+                                                        val sdkVersion = state.settings.development.builds[item.id]?.sdkVersion.orEmpty()
+                                                        Text(if (sdkVersion.isBlank()) "SDK de compilation non enregistré" else "Compilé avec SDK $sdkVersion",
+                                                            color = muted, style = MaterialTheme.typography.bodySmall)
+                                                    }
                                                 }
                                                 HorizontalDivider(color = Color(0xFFEEF0F4))
                                             }
@@ -190,6 +200,14 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
             Text(result?.status ?: "À compiler", color = if (result?.ready == true) Color(0xFF267249) else muted, style = MaterialTheme.typography.titleSmall)
             result?.completedAt?.takeIf { it.isNotBlank() }?.let { Text("Préparé à $it", color = muted, style = MaterialTheme.typography.bodySmall) }
             result?.error?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            if (project.kind == "native-mod") {
+                InfoLine("SDK du paquet local", result?.sdkVersion?.takeIf { it.isNotBlank() } ?: "Non enregistré")
+                InfoLine("Prochaine compilation", state.kotlinKitVersion.ifBlank { "Aucun kit choisi" })
+                val activeSdk = (if (s.appliedProfile == HubProfile.DEVELOP) s.activeDevelopment else s.installed)["sdk"]
+                InfoLine("SDK actif dans le jeu", activeSdk?.version ?: "Non installé")
+                if (result?.sdkVersion.isNullOrBlank()) Text("Une compilation depuis le Hub enregistrera la version utilisée pour ce paquet.",
+                    color = muted, style = MaterialTheme.typography.bodySmall)
+            }
             local?.let {
                 OutlinedButton({ actions.openIdea(it) }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) { Text("Ouvrir dans IntelliJ") }
                 Button({ actions.compile(project.id) }, enabled = !state.busy && it.task.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Compiler") }
@@ -254,8 +272,34 @@ private fun SdkPage(state: HubState, actions: HubActions) {
                 }
                 OutlinedButton(actions.importLocal, enabled = !state.busy) { Text("Importer un SDK local") }
                 HorizontalDivider()
+                SectionTitle("Projet source SDK")
+                val source = s.development.projects["sdk"]
+                val build = s.development.builds["sdk"]
+                if (source != null) {
+                    Text(source.directory, style = MaterialTheme.typography.bodySmall)
+                    InfoLine("Dernière lecture des sources", source.project.version)
+                    InfoLine("Construction", build?.status ?: "À compiler")
+                    if (!build?.error.isNullOrBlank()) Text(build!!.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    if (source.buildsSdk) Button({ actions.compile("sdk") }, enabled = !state.busy && state.windows) { Text("Construire et préparer le SDK") }
+                    TextButton({ actions.openIdea(source) }, enabled = !state.busy) { Text("Ouvrir les sources dans IntelliJ") }
+                    TextButton({ actions.forgetLocal("sdk") }, enabled = !state.busy) { Text("Retirer le projet source") }
+                }
+                OutlinedButton({ actions.addLocal("sdk") }, enabled = !state.busy && state.windows) {
+                    Text(if (source == null) "Choisir le projet SDK" else "Changer de projet SDK")
+                }
+                Text("La construction relit VERSION, compile et teste le SDK, prépare son paquet et sélectionne le kit Kotlin correspondant. Recompilez ensuite vos mods. Le jeu utilisera ces fichiers à la prochaine activation du profil.", color = muted, style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
                 SectionTitle("SDK pour compiler")
+                InfoLine("Kit Kotlin sélectionné", state.kotlinKitVersion.ifBlank { "Aucun kit valide sélectionné" })
                 DirectoryRow(PathSetting.KOTLIN_SDK.label, s.paths.kotlinSdk, !state.busy) { actions.choosePath(PathSetting.KOTLIN_SDK) }
+                OutlinedButton(actions.loadKotlinKits, enabled = !state.busy && state.windows) { Text("Télécharger un kit Kotlin") }
+                Text("Kits publiés · canal ${s.selectedChannel("sdk")}", color = muted, style = MaterialTheme.typography.bodySmall)
+                state.kotlinKits.forEach { kit ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Kotlin SDK ${kit.version}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        TextButton({ actions.downloadKotlinKit(kit) }, enabled = !state.busy) { Text("Télécharger et utiliser") }
+                    }
+                }
                 Text("Le kit Kotlin contient sdk.json et les bibliothèques de compilation. Sa version sera vérifiée avec celle du SDK choisi pour le jeu.", color = muted, style = MaterialTheme.typography.bodySmall)
             } else OutlinedButton(actions.refresh, enabled = !state.busy) { Text("Actualiser le catalogue") }
         }

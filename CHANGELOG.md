@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.4] - 2026-09-28
+
+- Logo du Hub partagé entre la fenêtre, la barre latérale, la zone de notification, les raccourcis et l'installateur Windows.
+- Mods locaux : SDK utilisé pour compiler le paquet affiché dans la liste et dans sa fiche, avec le kit de la prochaine compilation et le SDK actif dans le jeu.
+- Page SDK : téléchargement vérifié des kits Kotlin publiés et sélection automatique du kit pour les compilations locales.
+- Construction d'un projet SDK Windows depuis ses sources : lecture de `VERSION`, tests, paquet local et kit Kotlin préparés ensemble.
+- Recompilation demandée aux mods après un changement de kit ; vérification que leurs DLL SDK correspondent au runtime sélectionné, même à version identique.
+- Préparation des paquets dans un dossier neuf possible avec le jeu ouvert ; activation du profil toujours effectuée jeu fermé.
+
 ## [0.4.1-alpha.3] - 2026-09-27
 
 ### Distribution sur le serveur NRF

@@ -16,6 +16,8 @@ data class HubState(
     val availableProjects: Set<String> = emptySet(),
     val building: Boolean = false,
     val sdkReleases: List<Project> = emptyList(),
+    val kotlinKits: List<KotlinKit> = emptyList(),
+    val kotlinKitVersion: String = "",
     val gameRunning: Boolean = false,
     val operationError: String? = null,
     val recoveryRequired: Boolean = false,

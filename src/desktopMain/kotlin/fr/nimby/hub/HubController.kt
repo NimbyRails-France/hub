@@ -41,7 +41,9 @@ class HubController(
     }
     private val initial = store.read()
     private val policy = UpdatePolicy(initial.developerMode || initial.legacyProtection, initial.automatic)
-    private val mutable = MutableStateFlow(HubState(initial, windows = windows.supported, logFile = journal.file.toString()))
+    private fun kitVersion(path: String) = runCatching { LocalProjects.kotlinSdk(path, Project("sdk", "sdk", "0.0.0")) }.getOrDefault("")
+    private val mutable = MutableStateFlow(HubState(initial, windows = windows.supported, logFile = journal.file.toString(),
+        kotlinKitVersion = kitVersion(initial.paths.kotlinSdk)))
     val state: StateFlow<HubState> = mutable.asStateFlow()
     private var synchronization: Job? = null
     private var relay: Job? = null
@@ -72,7 +74,11 @@ class HubController(
         }
     }
 
-    private fun settings(value: HubSettings) { store.write(value); update { it.copy(settings = value) } }
+    private fun settings(value: HubSettings) {
+        store.write(value)
+        val version = if (value.paths.kotlinSdk != state.value.settings.paths.kotlinSdk) kitVersion(value.paths.kotlinSdk) else state.value.kotlinKitVersion
+        update { it.copy(settings = value, kotlinKitVersion = version) }
+    }
     fun start() {
         log("Démarrage du Hub $HUB_VERSION · journal : ${journal.file}")
         log("Environnement : OS=${System.getProperty("os.name")} ${System.getProperty("os.version")} ${System.getProperty("os.arch")} Java=${System.getProperty("java.version")} · jeu=${state.value.settings.gameDirectory} · profil=${state.value.settings.appliedProfile}")
@@ -126,7 +132,9 @@ class HubController(
         stopNetwork()
         if (id == "hub") updater.discard()
         update { it.copy(busy = false, projects = it.projects.filter { p -> p.id != id },
-            availableProjects = it.availableProjects - id, readyHubVersion = updater.version) }
+            availableProjects = it.availableProjects - id, readyHubVersion = updater.version,
+            sdkReleases = if (id == "sdk") emptyList() else it.sdkReleases,
+            kotlinKits = if (id == "sdk") emptyList() else it.kotlinKits) }
         if (policy.canSynchronize) resumeNetwork()
     }
     fun setGame(path: String) {
@@ -328,9 +336,7 @@ class HubController(
             else -> s.paths
         }
         if (key.development && !s.developerMode) return
-        val development = if (key == PathSetting.KOTLIN_SDK) s.development.copy(builds = s.development.builds.mapValues { (id, result) ->
-            if (s.development.projects[id]?.task?.isNotBlank() == true) result.copy(ready = false, status = "À recompiler avec le SDK choisi") else result
-        }) else s.development
+        val development = if (key == PathSetting.KOTLIN_SDK && path != s.paths.kotlinSdk) s.development.withKotlinKitChanged() else s.development
         settings(s.copy(paths = paths, development = development))
     }
 
@@ -387,6 +393,28 @@ class HubController(
         log("${releases.size} versions SDK disponibles")
     }
 
+    fun loadKotlinKits() = work("Recherche des kits Kotlin publiés…") {
+        require(state.value.settings.developing && Host.windows)
+        val channel = state.value.settings.selectedChannel("sdk")
+        val kits = source.kotlinKits(channel)
+        update { it.copy(kotlinKits = kits) }
+        log(if (kits.isEmpty()) "Aucun kit Kotlin publié sur le canal $channel" else "${kits.size} kits Kotlin disponibles · canal $channel")
+    }
+
+    fun downloadKotlinKit(kit: KotlinKit) = work("Téléchargement du kit Kotlin ${kit.version}…") {
+        require(state.value.settings.developing && Host.windows)
+        KotlinKitReleases.validate(kit)
+        val archive = java.nio.file.Files.createTempFile(store.directory, ".kotlin-kit-", ".zip")
+        try {
+            source.download(kit.url, kit.size, kit.sha256, archive)
+            val destination = store.directory.resolve("kotlin-kits/${kit.version}-${UUID.randomUUID()}")
+            withContext(Dispatchers.IO) { KotlinKits.prepare(kit, archive, destination) }
+            val now = state.value.settings
+            settings(now.copy(paths = now.paths.copy(kotlinSdk = destination.toString()), development = now.development.withKotlinKitChanged()))
+            log("Kit Kotlin ${kit.version} téléchargé et sélectionné · $destination · recompilez les mods locaux avant de les tester avec le SDK correspondant")
+        } finally { archive.deleteIfExists() }
+    }
+
     private fun developmentRoot(): Path {
         val s = state.value.settings
         val root = Path(s.paths.development).toAbsolutePath().normalize()
@@ -425,9 +453,10 @@ class HubController(
         } finally { archive.deleteIfExists() }
     }
 
-    fun addLocalProject(directory: Path) = work("Lecture du projet local…") {
+    fun addLocalProject(directory: Path, expectedKind: String? = null) = work("Lecture du projet local…") {
         require(state.value.settings.developing)
         val local = withContext(Dispatchers.IO) { LocalProjects.read(directory, state.value.projects) }
+        require(expectedKind == null || local.project.kind == expectedKind) { "Ce dossier ne contient pas le type de projet demandé : $expectedKind" }
         val s = state.value.settings
         settings(s.copy(development = s.development.copy(projects = s.development.projects + (local.project.id to local),
             origins = s.development.origins + (local.project.id to ModOrigin.LOCAL),
@@ -457,29 +486,36 @@ class HubController(
         require(state.value.settings.developing)
         val original = state.value.settings.development.projects[id] ?: error("Projet local absent")
         val s = state.value.settings
+        val previous = s.development.builds[id] ?: BuildResult()
         fun result(value: BuildResult) {
             val now = state.value.settings
             settings(now.copy(development = now.development.copy(builds = now.development.builds + (id to value))))
         }
-        result(BuildResult("Compilation en cours"))
+        result(previous.copy(status = "Compilation en cours", ready = false, error = ""))
         update { it.copy(building = true) }
         try {
             val local = withContext(Dispatchers.IO) { LocalProjects.read(Path(original.directory), state.value.projects) }
             require(local.project.id == id) { "L'identité du projet source a changé" }
-            val sdk = s.paths.kotlinSdk
-            if (local.project.kind == "native-mod") withContext(Dispatchers.IO) { LocalProjects.kotlinSdk(sdk, local.project) }
+            val sdk = if (local.buildsSdk) "" else s.paths.kotlinSdk
+            val sdkVersion = if (local.project.kind == "native-mod") withContext(Dispatchers.IO) { LocalProjects.kotlinSdk(sdk, local.project) } else ""
             val fingerprint = withContext(Dispatchers.IO) { LocalProjects.fingerprint(local, sdk) }
-            val (project, archive) = LocalProjects.build(local, sdk, { log(it) })
+            val built = LocalProjects.build(local, sdk, { log(it) })
+            val (project, archive, kit) = built
             require(withContext(Dispatchers.IO) { LocalProjects.fingerprint(local, sdk) } == fingerprint) { "Les sources ou le SDK ont changé pendant la compilation. Recompilez." }
-            result(BuildResult("Préparation en cours"))
+            result(previous.copy(status = "Préparation en cours", ready = false, error = ""))
             val record = prepare(project, archive, "local")
+            if (kit != null) fr.nimby.hub.platform.windows.WindowsSdkBuildMatch.requireSameBuild(kit, Path(record.directory))
             val now = state.value.settings
-            settings(now.copy(development = now.development.copy(projects = now.development.projects + (id to local),
-                prepared = now.development.prepared + (id to record))))
-            result(BuildResult("Prêt à tester", true, LocalTime.now().withNano(0).toString(), sdk, fingerprint))
+            settings(now.withSuccessfulBuild(local, record,
+                BuildResult("Prêt à tester", true, LocalTime.now().withNano(0).toString(), kit?.toString() ?: sdk, fingerprint,
+                    sdkVersion = if (kit != null) project.version else sdkVersion), kit?.toString()))
+            if (kit != null) log("Kit Kotlin ${project.version} sélectionné · les mods locaux doivent être recompilés · jeu inchangé jusqu’à l’activation du profil")
             log("${project.name} · compilation réussie et paquet prêt à tester")
         } catch (failure: Exception) {
-            result(BuildResult(if (failure is CancellationException) "Compilation annulée" else "Compilation ou préparation échouée", error = failure.message.orEmpty()))
+            // The old prepared package still exists after a failure. Keep its
+            // provenance while making it unavailable for activation.
+            result(previous.copy(status = if (failure is CancellationException) "Compilation annulée" else "Compilation ou préparation échouée",
+                ready = false, error = failure.message.orEmpty()))
             throw failure
         }
     }
@@ -510,6 +546,8 @@ class HubController(
                     if (local.project.kind == "native-mod") {
                         val version = withContext(Dispatchers.IO) { LocalProjects.kotlinSdk(snapshot.paths.kotlinSdk, local.project) }
                         require(resolved["sdk"]?.version == version) { "Le kit de compilation $version et le SDK du jeu ${resolved["sdk"]?.version ?: "absent"} doivent correspondre pour tester ce résultat" }
+                        if (Host.windows) fr.nimby.hub.platform.windows.WindowsSdkBuildMatch.requireSameBuild(
+                            Path(snapshot.paths.kotlinSdk), Path(resolved.getValue("sdk").directory))
                     }
                 }
             }

@@ -7,6 +7,9 @@
 #ifndef NativeVersion
  #error NativeVersion required
 #endif
+#ifndef HubIcon
+ #define HubIcon SourcePath + "..\..\src\desktopMain\resources\branding\hub.ico"
+#endif
 [Setup]
 AppId={{53CA0228-8196-4BF5-B77A-49CB07F9F469}
 AppName=NimbyRails France Hub
@@ -26,7 +29,8 @@ OutputDir={#Output}
 OutputBaseFilename=NRFHub-{#Version}-windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
-UninstallDisplayIcon={app}\NRFHub.exe
+UninstallDisplayIcon={app}\app\NRFHub.ico
+SetupIconFile={#HubIcon}
 CloseApplications=yes
 CloseApplicationsFilter=NRFHub.exe
 RestartApplications=no
@@ -37,8 +41,10 @@ SetupLogging=yes
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Also brand shortcuts for CI images that use the stock JDK launcher.
+Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignoreversion
 [Icons]
-Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"
+Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"; IconFilename: "{app}\app\NRFHub.ico"
 [Run]
 Filename: "{app}\NRFHub.exe"; Description: "Lancer NRF Hub"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\NRFHub.exe"; Flags: nowait; Check: RelaunchRequested

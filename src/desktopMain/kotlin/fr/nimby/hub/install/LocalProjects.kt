@@ -13,7 +13,11 @@ import kotlin.io.path.*
 
 /** An optional descriptor declares outputs; the Hub never searches for an arbitrary DLL. */
 object LocalProjects {
-    @Serializable data class Descriptor(val manifest: String = "dist/project.json", val task: String = "", val archive: String = "")
+    @Serializable data class Descriptor(val manifest: String = "dist/project.json", val task: String = "", val archive: String = "",
+        val builder: String = "gradle", val gameSha256: List<String> = emptyList())
+
+    /** A SDK build produces its runtime and compilation kit as one validated result. */
+    data class Built(val project: Project, val archive: Path, val kotlinKit: Path? = null)
 
     /** A source manifest has no archive hash yet. Build computes it before installation. */
     private fun sourceProject(mod: JsonObject): Project {
@@ -32,7 +36,9 @@ object LocalProjects {
         val base = root.toAbsolutePath().normalize()
         val path = base.resolve(relative).normalize()
         require(!Path(relative).isAbsolute && path.startsWith(base) && path != base) { "Chemin local hors du projet" }
-        if (path.exists()) require(path.toRealPath().startsWith(base.toRealPath())) { "Un lien sort du projet" }
+        var existing = path
+        while (!existing.exists(LinkOption.NOFOLLOW_LINKS)) existing = existing.parent
+        require(existing.toRealPath().startsWith(base.toRealPath())) { "Un lien sort du projet" }
         return path
     }
 
@@ -40,6 +46,19 @@ object LocalProjects {
         val root = directory.toRealPath()
         val descriptorPath = root.resolve("hub-local.json")
         val descriptor = if (descriptorPath.isRegularFile()) hubJson.decodeFromString<Descriptor>(descriptorPath.jsonText()) else null
+        require(descriptor == null || descriptor.builder in setOf("gradle", "windows-sdk")) { "Constructeur local inconnu" }
+        if (descriptor?.builder == "windows-sdk") {
+            require(Host.windows) { "La compilation du SDK local est disponible sous Windows" }
+            listOf("VERSION", "CMakeLists.txt", "tools/windows/build-for-hub.ps1").forEach {
+                require(inside(root, it).isRegularFile()) { "Projet SDK incomplet : $it" }
+            }
+            val version = root.resolve("VERSION").readText().trim()
+            val project = Project("sdk", "sdk", version, "NimbyRailsFranceSDK + NRF Loader",
+                rootFolder = "NimbyRailsFranceSDK-$version", gameSha256 = descriptor.gameSha256,
+                loaderApi = 1, channel = Versions.channel(version))
+            ProjectRules.validate(project, remote = false, requireArtifact = false)
+            return LocalProject(project, root.toString(), descriptorPath.toString(), "buildSdk", builder = "windows-sdk")
+        }
         val manifest = if (descriptor != null) inside(root, descriptor.manifest) else
             listOf(root.resolve("project.json"), root.resolve("dist/project.json")).firstOrNull { it.isRegularFile() }
         val mod = root.resolve("mod.json").takeIf { it.isRegularFile() }?.let { hubJson.parseToJsonElement(it.jsonText()).jsonObject }
@@ -109,12 +128,15 @@ object LocalProjects {
             }
         }
         collect(Path(local.directory), true)
-        if (sdk.isNotBlank()) collect(Path(sdk), false)
+        // The SDK's own generated kit is an OUTPUT. Including it here would
+        // invalidate every successful SDK build as soon as the Hub selects it.
+        if (!local.buildsSdk && sdk.isNotBlank()) collect(Path(sdk), false)
         digest.update(hubJson.encodeToString(LocalProject.serializer(), local).toByteArray())
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    suspend fun build(local: LocalProject, sdk: String, output: (String) -> Unit): Pair<Project, Path> {
+    suspend fun build(local: LocalProject, sdk: String, output: (String) -> Unit): Built {
+        if (local.buildsSdk) return fr.nimby.hub.platform.windows.WindowsSdkBuilder.build(local, output)
         require(local.task.isNotBlank()) { "Ce projet ne déclare pas de tâche Gradle. Compilez-le dans votre IDE puis importez son paquet local." }
         val root = Path(local.directory)
         val wrapper = root.resolve("gradle/wrapper/gradle-wrapper.jar")
@@ -126,6 +148,15 @@ object LocalProjects {
         val command = mutableListOf(java.toString(), "-classpath", wrapper.toString(), "org.gradle.wrapper.GradleWrapperMain", "--console=plain", "--no-daemon", local.task)
         if (sdk.isNotBlank()) command += "-PnrfSdkDir=$sdk"
         // Process arguments are passed directly. A path is never interpolated into shell code.
+        run(command, root, "Gradle", output)
+        require(archive.isRegularFile()) { "Gradle a terminé mais le paquet déclaré est absent : $archive" }
+        val project = local.project.copy(size = archive.fileSize(), sha256 = archive.sha256())
+        ProjectRules.validate(project, remote = false)
+        return Built(project, archive)
+    }
+
+    /** Shared logging/cancellation; platform builders provide argument lists, never shell fragments. */
+    internal suspend fun run(command: List<String>, root: Path, label: String, output: (String) -> Unit) {
         val process = withContext(Dispatchers.IO) { ProcessBuilder(command).directory(root.toFile()).redirectErrorStream(true).start() }
         try {
             withContext(Dispatchers.IO) {
@@ -137,7 +168,7 @@ object LocalProjects {
                         if (++count <= 100_000) output(line.take(2000))
                     }
                 }
-                check(runInterruptible { process.waitFor() } == 0) { "Gradle a échoué. Consultez le journal de compilation." }
+                check(runInterruptible { process.waitFor() } == 0) { "$label a échoué. Consultez le journal de compilation." }
             }
         } finally {
             if (process.isAlive) {
@@ -146,9 +177,5 @@ object LocalProjects {
                 withContext(NonCancellable + Dispatchers.IO) { if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly() }
             }
         }
-        require(archive.isRegularFile()) { "Gradle a terminé mais le paquet déclaré est absent : $archive" }
-        val project = local.project.copy(size = archive.fileSize(), sha256 = archive.sha256())
-        ProjectRules.validate(project, remote = false)
-        return project to archive
     }
 }

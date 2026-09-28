@@ -3,6 +3,8 @@ package fr.nimby.hub
 import androidx.compose.runtime.*
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.window.*
 import fr.nimby.hub.install.*
 import fr.nimby.hub.model.*
@@ -12,7 +14,6 @@ import fr.nimby.hub.ui.*
 import fr.nimby.hub.network.ReleaseServer
 import kotlinx.coroutines.*
 import java.awt.*
-import java.awt.image.BufferedImage
 import java.nio.file.Path
 import javax.swing.JFileChooser
 import javax.swing.JOptionPane
@@ -28,6 +29,7 @@ fun main(args: Array<String>) {
             check(surface.width == 2)
         }
         check(object {}.javaClass.getResource("/windows-diagnostics.ps1") != null)
+        check(hubLogo.width > 0 && hubLogo.height > 0)
         println("PASS: packaged Windows JVM, application classes and native dependencies")
         return
     }
@@ -83,6 +85,7 @@ fun main(args: Array<String>) {
     try { single.start { SwingUtilities.invokeLater { showExisting() } } }
     catch (failure: Exception) { JOptionPane.showMessageDialog(null, failure.message); single.close(); return }
     application {
+        val logo = remember { BitmapPainter(hubLogo.toComposeImageBitmap()) }
         val state by controller.state.collectAsState()
         var visible by remember { mutableStateOf(true) }
         val windowState = rememberWindowState(width = state.settings.windowWidth.dp, height = state.settings.windowHeight.dp)
@@ -106,7 +109,7 @@ fun main(args: Array<String>) {
                 action("Afficher le Hub", ::show)
                 action("Actualiser", controller::refresh)
                 action("Quitter") { quit() }
-                tray = TrayIcon(hubIcon(), "NimbyRails France Hub", menu).apply {
+                tray = TrayIcon(hubLogo, "NimbyRails France Hub", menu).apply {
                     isImageAutoSize = true
                     addActionListener { show() }
                     SystemTray.getSystemTray().add(this)
@@ -121,6 +124,7 @@ fun main(args: Array<String>) {
         Window(
             onCloseRequest = { if (tray != null) visible = false else quit() },
             state = windowState, visible = visible, title = "NimbyRails France Hub",
+            icon = logo,
             onPreviewKeyEvent = { event ->
                 when {
                     event.type == KeyEventType.KeyDown && event.key == Key.F11 -> { toggleFullscreen(); true }
@@ -183,8 +187,12 @@ fun main(args: Array<String>) {
                 choosePath = { key -> choose(key.label, !key.file, state.settings.path(key))?.let { controller.setPath(key, it.toString()) } },
                 profile = { controller.selectProfile(it) },
                 addLocal = { kind ->
-                    val start = if (kind == "tco") state.settings.paths.localTools else state.settings.paths.localMods
-                    choose("Ajouter un projet local", true, start)?.let(controller::addLocalProject)
+                    val start = when (kind) {
+                        "sdk" -> state.settings.development.projects["sdk"]?.directory ?: state.settings.paths.localMods
+                        "tco" -> state.settings.paths.localTools
+                        else -> state.settings.paths.localMods
+                    }
+                    choose("Ajouter un projet local", true, start)?.let { controller.addLocalProject(it, kind) }
                 },
                 origin = controller::chooseOrigin,
                 compile = controller::compile,
@@ -207,6 +215,8 @@ fun main(args: Array<String>) {
                 loadSdkVersions = controller::loadSdkVersions,
                 installSdk = controller::installSdkVersion,
                 sdkVersion = controller::chooseSdkVersion,
+                loadKotlinKits = controller::loadKotlinKits,
+                downloadKotlinKit = controller::downloadKotlinKit,
                 clearError = controller::clearError,
                 releaseLegacy = { if (confirm("Autoriser à nouveau les mises à jour des anciennes installations ?\nVérifiez d’abord que vos versions locales ont été conservées séparément.")) controller.releaseLegacyProtection() },
                 recoverProfile = controller::recoverProfile,
@@ -222,16 +232,7 @@ fun main(args: Array<String>) {
                     if (chooser.showSaveDialog(window) == JFileChooser.APPROVE_OPTION) controller.exportLogs(chooser.selectedFile.toPath())
                 },
                 repairSdk = { if (confirm("Fermez le jeu. Le Hub va vérifier puis sauvegarder le chargeur actuel et restaurer la SDL d’origine. Vous devrez ensuite réappliquer votre profil ou réinstaller le SDK. Continuer ?")) controller.repairSdk() },
-            ))
+            ), logo = logo)
         }
-    }
-}
-
-private fun hubIcon(): BufferedImage = BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB).also { image ->
-    image.createGraphics().apply {
-        color = Color(0x183746); fillRoundRect(0, 0, 64, 64, 12, 12)
-        color = Color(0x75DFC5); stroke = BasicStroke(5f)
-        drawLine(22, 12, 22, 52); drawLine(42, 12, 42, 52)
-        listOf(20, 32, 44).forEach { drawLine(17, it, 47, it) }; dispose()
     }
 }

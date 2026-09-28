@@ -60,7 +60,10 @@ compose.desktop {
             linux { packageName = "nrf-hub"; shortcut = true; menuGroup = "Game" }
             macOS { packageVersion = numericVersion.split('.').mapIndexed { index, part -> if (index == 0) part.toInt().coerceAtLeast(1).toString() else part }.joinToString(".") }
             modules("java.net.http", "java.management", "jdk.unsupported", "jdk.crypto.ec")
-            windows { menu = true; shortcut = true; upgradeUuid = "53ca0228-8196-4bf5-b77a-49cb07f9f469" }
+            windows {
+                menu = true; shortcut = true; upgradeUuid = "53ca0228-8196-4bf5-b77a-49cb07f9f469"
+                iconFile.set(project.file("src/desktopMain/resources/branding/hub.ico"))
+            }
         }
     }
 }

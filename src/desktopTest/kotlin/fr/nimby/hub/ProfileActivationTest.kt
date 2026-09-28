@@ -184,6 +184,47 @@ class ProfileActivationTest {
         } finally { controller.close() }
     }
 
+    @Test fun sameVersionWithDifferentSdkBinaryBlocksLaunchBeforeAnyActivation() = runTest {
+        if (!Host.windows) return@runTest
+        val f = Fixture(); val p = Platform()
+        val version = "0.8.0-alpha.1"
+        val sdk = f.record("sdk", "sdk", "published-sdk", version)
+        Path(sdk.directory, "loader").createDirectory().resolve("NimbyRailsFranceSDK.dll").writeText("published SDK")
+        p.activeSdk = Path(sdk.directory)
+        val kit = f.root.resolve("kit").createDirectory()
+        kit.resolve("sdk.json").writeText("""{"format":1,"target":"mingw_x64","sdkVersion":"$version"}""")
+        listOf("klib/nimby-mod-api.klib", "bridge/Exports.kt", "bin/NimbyKotlinMod.dll",
+            "bin/NimbyRailsFranceSDK.dll", "bin/kotlin_loader_test.exe").forEach {
+            kit.resolve(it).apply { parent.createDirectories(); writeText("rebuilt SDK") }
+        }
+        val project = f.root.resolve("source-mod").createDirectory()
+        project.resolve("gradle/wrapper").createDirectories().resolve("gradle-wrapper.jar").writeText("fixture")
+        project.resolve("mod.json").writeText("""{
+            "id":"signals","name":"Signals","modId":"signals","module":"Mod",
+            "version":"$version","language":"kotlin-native","sdkMin":"$version","sdkMaxExclusive":"0.9.0",
+            "gameSha256":["${f.hash}"]
+        }""")
+        val local = fr.nimby.hub.install.LocalProjects.read(project)
+        val mod = f.record("signals", "native-mod", "prepared-mod", version)
+        val store = SettingsStore(f.root.resolve("data"))
+        store.write(HubSettings(gameDirectory = f.game.toString(), developerMode = true, profile = HubProfile.DEVELOP,
+            installed = mapOf("sdk" to sdk), paths = HubPaths(kotlinSdk = kit.toString(), development = f.root.resolve("dev").toString()),
+            development = DevelopmentSettings(origins = mapOf("signals" to ModOrigin.LOCAL),
+                projects = mapOf("signals" to local), prepared = mapOf("signals" to mod), sharedDataAcknowledged = true,
+                builds = mapOf("signals" to BuildResult(ready = true,
+                    fingerprint = fr.nimby.hub.install.LocalProjects.fingerprint(local, kit.toString()))))))
+        val controller = HubController(store, backgroundScope, source, windows = p)
+        try {
+            controller.launchGame()
+            controller.state.first { !it.busy }
+            assertContains(controller.state.value.operationError.orEmpty(), "builds différents")
+            assertEquals(0, p.launches)
+            assertTrue(p.calls.isEmpty())
+            assertEquals(Path(sdk.directory), p.activeSdk)
+            assertEquals(HubProfile.PLAY, store.read().appliedProfile)
+        } finally { controller.close() }
+    }
+
     @Test fun refusedGameClosureDoesNotSwitchSdkOrLaunchAnotherGame() = runTest {
         val f = Fixture(); val p = Platform(); p.running = true; p.rejectClose = true
         val store = SettingsStore(f.root.resolve("data")); store.write(HubSettings(gameDirectory = f.game.toString()))
