@@ -1,5 +1,7 @@
 package fr.nimby.hub.model
 
+import fr.nimby.hub.i18n.tr
+
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -60,12 +62,12 @@ object ReleaseSelection {
 
     fun assetUrl(release: GitHubRelease, repo: String, name: String): String = release.assets.firstOrNull {
         it.name == name && it.state == "uploaded" && officialAsset(it.url, repo, release.tag)
-    }?.url ?: error("Manifeste absent ou non officiel")
+    }?.url ?: error(tr("Manifeste absent ou non officiel"))
 
     fun validateAsset(release: GitHubRelease, repo: String, version: String, channel: String?, url: String, size: Long, hash: String) {
-        require(version == release.version && (channel == null || channel == Versions.channel(version))) { "Version ou canal incohérent avec la release" }
-        require(officialAsset(url, repo, release.tag)) { "Asset d'une autre release" }
+        require(version == release.version && (channel == null || channel == Versions.channel(version))) { tr("Version ou canal incohérent avec la release") }
+        require(officialAsset(url, repo, release.tag)) { tr("Asset d'une autre release") }
         val asset = release.assets.firstOrNull { it.url == url && it.state == "uploaded" && it.size == size }
-        require(asset != null && (asset.digest.isNullOrEmpty() || asset.digest.equals("sha256:$hash", true))) { "Taille ou empreinte différente du catalogue" }
+        require(asset != null && (asset.digest.isNullOrEmpty() || asset.digest.equals("sha256:$hash", true))) { tr("Taille ou empreinte différente du catalogue") }
     }
 }

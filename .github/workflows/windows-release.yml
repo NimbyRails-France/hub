@@ -1,0 +1,57 @@
+# Opt-in alternative while the VPS is unavailable. Other commits stay on Woodpecker.
+name: Windows GitHub release
+on:
+  push:
+    branches: [alpha, beta, main]
+permissions:
+  contents: read
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: >-
+      contains(github.event.head_commit.message, 'Release-Runner: github')
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      CI_REPO: ${{ github.repository }}
+      CI_COMMIT_SHA: ${{ github.sha }}
+      CI_COMMIT_BRANCH: ${{ github.ref_name }}
+      CI_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      CI_PIPELINE_EVENT: push
+      WINEPREFIX: /tmp/nrf-wine
+      WINEDEBUG: '-all'
+      GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dfile.encoding=UTF-8'
+    steps:
+      - name: Install checkout prerequisites
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Prepare isolated Windows cross-compilers
+        run: |
+          git clone https://github.com/NimbyRails-France/sdk.git .ci/runner-sdk
+          git -C .ci/runner-sdk checkout --detach "$(cat .woodpecker/sdk-revision.txt)"
+          sh .ci/runner-sdk/.github/ci/bootstrap.sh "$PWD/.ci/runner-sdk"
+      - name: Build, test and verify Windows packages
+        run: |
+          python3 .woodpecker/test-github-release.py
+          sh .woodpecker/build.sh
+      - name: Preserve verified packages and release plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-release
+          path: |
+            dist/release/
+            .release-plan.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - name: Publish release and public Hub catalogue
+        env:
+          NRF_RELEASE_TOKEN: ${{ github.token }}
+        run: python3 .woodpecker/github-release.py

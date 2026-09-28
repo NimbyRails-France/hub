@@ -16,7 +16,7 @@ import shutil
 import tempfile
 
 ORIGIN = 'https://releases.nimbyrails-france.fr'
-PROJECTS = {'hub', 'sdk', 'tco', 'signalisationfrancaiserealiste'}
+PROJECTS = {'hub', 'sdk', 'tco', 'signalisationfrancaiserealiste', 'signal-placement', 'time-change'}
 VERSION = re.compile(r'\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?')
 NAME = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,180}')
 

@@ -1,5 +1,7 @@
 package fr.nimby.hub.install
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.model.*
 import fr.nimby.hub.storage.*
 import fr.nimby.hub.platform.Host
@@ -21,24 +23,24 @@ object LocalProjects {
 
     /** A source manifest has no archive hash yet. Build computes it before installation. */
     private fun sourceProject(mod: JsonObject): Project {
-        fun field(name: String) = mod[name]?.jsonPrimitive?.content ?: error("mod.json : $name requis")
+        fun field(name: String) = mod[name]?.jsonPrimitive?.content ?: error(tr("mod.json : {0} requis", name))
         val version = field("version")
         val modId = field("modId")
         val module = field("module")
-        require(Regex("[A-Za-z][A-Za-z0-9_-]{0,99}").matches(module)) { "Module Kotlin invalide" }
+        require(Regex("[A-Za-z][A-Za-z0-9_-]{0,99}").matches(module)) { tr("Module Kotlin invalide") }
         return Project(id = field("id"), name = field("name"), kind = "native-mod", version = version,
             modId = modId, module = "$module.${Host.moduleExtension}", loaderApi = 1, rootFolder = "$modId-$version",
             platform = Host.id, url = "$modId-$version-${Host.id}.zip", sdkMin = field("sdkMin"), sdkMaxExclusive = field("sdkMaxExclusive"),
-            gameSha256 = mod["gameSha256"]?.jsonArray?.map { it.jsonPrimitive.content } ?: error("mod.json : gameSha256 requis"))
+            gameSha256 = mod["gameSha256"]?.jsonArray?.map { it.jsonPrimitive.content } ?: error(tr("mod.json : gameSha256 requis")))
     }
 
     fun inside(root: Path, relative: String): Path {
         val base = root.toAbsolutePath().normalize()
         val path = base.resolve(relative).normalize()
-        require(!Path(relative).isAbsolute && path.startsWith(base) && path != base) { "Chemin local hors du projet" }
+        require(!Path(relative).isAbsolute && path.startsWith(base) && path != base) { tr("Chemin local hors du projet") }
         var existing = path
         while (!existing.exists(LinkOption.NOFOLLOW_LINKS)) existing = existing.parent
-        require(existing.toRealPath().startsWith(base.toRealPath())) { "Un lien sort du projet" }
+        require(existing.toRealPath().startsWith(base.toRealPath())) { tr("Un lien sort du projet") }
         return path
     }
 
@@ -46,11 +48,11 @@ object LocalProjects {
         val root = directory.toRealPath()
         val descriptorPath = root.resolve("hub-local.json")
         val descriptor = if (descriptorPath.isRegularFile()) hubJson.decodeFromString<Descriptor>(descriptorPath.jsonText()) else null
-        require(descriptor == null || descriptor.builder in setOf("gradle", "windows-sdk")) { "Constructeur local inconnu" }
+        require(descriptor == null || descriptor.builder in setOf("gradle", "windows-sdk")) { tr("Constructeur local inconnu") }
         if (descriptor?.builder == "windows-sdk") {
-            require(Host.windows) { "La compilation du SDK local est disponible sous Windows" }
+            require(Host.windows) { tr("La compilation du SDK local est disponible sous Windows") }
             listOf("VERSION", "CMakeLists.txt", "tools/windows/build-for-hub.ps1").forEach {
-                require(inside(root, it).isRegularFile()) { "Projet SDK incomplet : $it" }
+                require(inside(root, it).isRegularFile()) { tr("Projet SDK incomplet : {0}", it) }
             }
             val version = root.resolve("VERSION").readText().trim()
             val project = Project("sdk", "sdk", version, "NimbyRailsFranceSDK + NRF Loader",
@@ -66,10 +68,10 @@ object LocalProjects {
         val source = if (descriptor == null && mod?.get("language")?.jsonPrimitive?.content == "kotlin-native" && mod.containsKey("modId")) sourceProject(mod) else null
         val template = source ?: manifest?.let { hubJson.decodeFromString<Project>(it.jsonText()) }
             ?: catalogue.firstOrNull { it.id == id }
-            ?: error("Manifeste project.json introuvable. Ajoutez le manifeste de distribution ou un hub-local.json qui le référence.")
+            ?: error(tr("Manifeste project.json introuvable. Ajoutez le manifeste de distribution ou un hub-local.json qui le référence."))
         var project = template
         if (mod != null) {
-            require(template.id == id) { "mod.json et project.json désignent des projets différents" }
+            require(template.id == id) { tr("mod.json et project.json désignent des projets différents") }
             val version = mod.getValue("version").jsonPrimitive.content
             project = template.copy(version = version, rootFolder = template.rootFolder.replace(template.version, version),
                 module = mod["module"]?.jsonPrimitive?.content?.let { "$it.${Host.moduleExtension}" } ?: template.module,
@@ -79,7 +81,7 @@ object LocalProjects {
         ProjectRules.validate(project, remote = false, requireArtifact = source == null)
         val gradle = root.resolve("gradle/wrapper/gradle-wrapper.jar").isRegularFile()
         val task = descriptor?.task ?: if (gradle && mod?.get("language")?.jsonPrimitive?.content == "kotlin-native") "packageMod" else ""
-        require(task.isBlank() || Regex("[A-Za-z][A-Za-z0-9:]*").matches(task)) { "Tâche Gradle invalide" }
+        require(task.isBlank() || Regex("[A-Za-z][A-Za-z0-9:]*").matches(task)) { tr("Tâche Gradle invalide") }
         val fileName = template.url.substringAfterLast('/').replace(template.version, project.version)
         val archive = descriptor?.archive?.replace("{version}", project.version)?.takeIf { it.isNotBlank() }
             ?: if (task == "packageMod") "build/${if (Host.windows) "gradle" else "gradle-linux"}/distributions/$fileName" else "dist/$fileName"
@@ -88,21 +90,21 @@ object LocalProjects {
     }
 
     fun kotlinSdk(directory: String, project: Project): String {
-        require(directory.isNotBlank()) { "Choisissez le kit SDK Kotlin dans les paramètres de développement" }
+        require(directory.isNotBlank()) { tr("Choisissez le kit SDK Kotlin dans les paramètres de développement") }
         val root = Path(directory).toRealPath()
         val metadata = hubJson.parseToJsonElement(root.resolve("sdk.json").jsonText()).jsonObject
         val target = when (Host.id) {
             "windows-x64" -> "mingw_x64"
             "linux-x64" -> "linux_x64"
-            else -> error("Le SDK natif du jeu ne prend pas en charge ${Host.id}")
+            else -> error(tr("Le SDK natif du jeu ne prend pas en charge {0}", Host.id))
         }
-        require(metadata["format"]?.jsonPrimitive?.intOrNull == 1 && metadata["target"]?.jsonPrimitive?.content == target) { "Kit SDK Kotlin incompatible avec ${Host.id}" }
+        require(metadata["format"]?.jsonPrimitive?.intOrNull == 1 && metadata["target"]?.jsonPrimitive?.content == target) { tr("Kit SDK Kotlin incompatible avec {0}", Host.id) }
         val version = metadata.getValue("sdkVersion").jsonPrimitive.content
-        require(Versions.valid(version)) { "Version du kit SDK invalide" }
-        if (project.sdkMin != null) require(Versions.compare(version, project.sdkMin) >= 0 && Versions.compare(version, project.sdkMaxExclusive!!) < 0) { "Kit SDK $version incompatible avec ${project.name}" }
+        require(Versions.valid(version)) { tr("Version du kit SDK invalide") }
+        if (project.sdkMin != null) require(Versions.compare(version, project.sdkMin) >= 0 && Versions.compare(version, project.sdkMaxExclusive!!) < 0) { tr("Kit SDK {0} incompatible avec {1}", version, project.name) }
         listOf("klib/nimby-mod-api.klib", "bridge/Exports.kt", "bin/NimbyKotlinMod.${Host.moduleExtension}",
             "bin/NimbyRailsFranceSDK.${Host.moduleExtension}", "bin/kotlin_loader_test${if (Host.windows) ".exe" else ""}").forEach {
-            require(root.resolve(it).isRegularFile()) { "Kit SDK incomplet : $it" }
+            require(root.resolve(it).isRegularFile()) { tr("Kit SDK incomplet : {0}", it) }
         }
         return version
     }
@@ -117,7 +119,7 @@ object LocalProjects {
                 override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): FileVisitResult =
                     if (source && dir != root && dir.fileName.toString() in excluded) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
                 override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): FileVisitResult {
-                    require(!attrs.isSymbolicLink && !attrs.isOther) { "Lien non pris en charge dans le projet ou le SDK : $file" }
+                    require(!attrs.isSymbolicLink && !attrs.isOther) { tr("Lien non pris en charge dans le projet ou le SDK : {0}", file) }
                     if (attrs.isRegularFile) files.add(file)
                     return FileVisitResult.CONTINUE
                 }
@@ -137,10 +139,10 @@ object LocalProjects {
 
     suspend fun build(local: LocalProject, sdk: String, output: (String) -> Unit): Built {
         if (local.buildsSdk) return fr.nimby.hub.platform.windows.WindowsSdkBuilder.build(local, output)
-        require(local.task.isNotBlank()) { "Ce projet ne déclare pas de tâche Gradle. Compilez-le dans votre IDE puis importez son paquet local." }
+        require(local.task.isNotBlank()) { tr("Ce projet ne déclare pas de tâche Gradle. Compilez-le dans votre IDE puis importez son paquet local.") }
         val root = Path(local.directory)
         val wrapper = root.resolve("gradle/wrapper/gradle-wrapper.jar")
-        require(wrapper.isRegularFile()) { "Wrapper Gradle absent" }
+        require(wrapper.isRegularFile()) { tr("Wrapper Gradle absent") }
         if (local.project.kind == "native-mod") kotlinSdk(sdk, local.project)
         val archive = inside(root, local.archive)
         val javaRoot = System.getenv("JAVA_HOME")?.takeIf { Path(it, "bin", if (Host.windows) "java.exe" else "java").isRegularFile() } ?: System.getProperty("java.home")
@@ -149,7 +151,7 @@ object LocalProjects {
         if (sdk.isNotBlank()) command += "-PnrfSdkDir=$sdk"
         // Process arguments are passed directly. A path is never interpolated into shell code.
         run(command, root, "Gradle", output)
-        require(archive.isRegularFile()) { "Gradle a terminé mais le paquet déclaré est absent : $archive" }
+        require(archive.isRegularFile()) { tr("Gradle a terminé mais le paquet déclaré est absent : {0}", archive) }
         val project = local.project.copy(size = archive.fileSize(), sha256 = archive.sha256())
         ProjectRules.validate(project, remote = false)
         return Built(project, archive)
@@ -168,7 +170,7 @@ object LocalProjects {
                         if (++count <= 100_000) output(line.take(2000))
                     }
                 }
-                check(runInterruptible { process.waitFor() } == 0) { "$label a échoué. Consultez le journal de compilation." }
+                check(runInterruptible { process.waitFor() } == 0) { tr("{0} a échoué. Consultez le journal de compilation.", label) }
             }
         } finally {
             if (process.isAlive) {

@@ -1,5 +1,7 @@
 package fr.nimby.hub.storage
 
+import fr.nimby.hub.i18n.tr
+
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.ZipEntry
@@ -18,7 +20,7 @@ object DiagnosticBundle {
         "legacy-loader" to Path.of(System.getenv("LOCALAPPDATA") ?: "", "NimbyRailsSDK"))
 
     fun export(destination: Path, roots: Map<String, Path>, environment: String, technical: String? = null): Int {
-        require(destination.extension.lowercase() == "zip" && !destination.exists()) { "Choisissez un nouveau fichier .zip" }
+        require(destination.extension.lowercase() == "zip" && !destination.exists()) { tr("Choisissez un nouveau fichier .zip") }
         val candidates = mutableListOf<Pair<String, Path>>()
         val notes = mutableListOf<String>()
         roots.forEach { (label, root) ->

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.5] - 2026-09-28
+
+- Le Hub et son installateur sont disponibles en français et en anglais, avec un choix de langue dans les réglages.
+- Les téléchargements et la recherche de mises à jour utilisent GitHub lorsque le serveur NRF est indisponible.
+- Les nouvelles versions du canal choisi sont recherch?es chaque minute pendant que le Hub est ouvert et disponible.
+- Une même version n'est annoncée qu'une fois ; les projets locaux restent sous le contrôle du développeur.
+- Améliore les messages d'erreur et le suivi des opérations dans le journal.
+
+French and English interfaces, GitHub download fallback during server outages, and regular update checks without requiring a personal GitHub token.
+
 ## [0.4.1-alpha.4] - 2026-09-28
 
 - Logo du Hub partagé entre la fenêtre, la barre latérale, la zone de notification, les raccourcis et l'installateur Windows.

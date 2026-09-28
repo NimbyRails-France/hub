@@ -1,5 +1,7 @@
 package fr.nimby.hub.update
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.model.*
 import fr.nimby.hub.platform.Host
 import fr.nimby.hub.network.ReleaseSource
@@ -19,9 +21,9 @@ class SelfUpdater(private val directory: Path, private val source: ReleaseSource
         if (!allowed() || installedExecutable == null || ready != null) return
         val release = source.hub(channel)
         if (!allowed() || Versions.compare(release.version, HUB_VERSION) <= 0) return
-        require(release.platform == Host.id) { "Installateur incompatible avec ${Host.id}" }
+        require(release.platform == Host.id) { tr("Installateur incompatible avec {0}", Host.id) }
         val extension = if (Host.windows) "exe" else if (Host.mac) "dmg" else "deb"
-        require(release.url.substringBefore('?').endsWith(".$extension", ignoreCase = true)) { "Format d'installateur incompatible" }
+        require(release.url.substringBefore('?').endsWith(".$extension", ignoreCase = true)) { tr("Format d'installateur incompatible") }
         val path = directory.resolve("updates/setup-${UUID.randomUUID()}.$extension")
         source.download(release.url, release.size, release.sha256, path)
         if (allowed()) ready = release to path else path.deleteIfExists()
@@ -31,7 +33,7 @@ class SelfUpdater(private val directory: Path, private val source: ReleaseSource
         if (!allowed) return
         val executable = installedExecutable ?: return
         val (release, path) = ready ?: return
-        require(path.fileSize() == release.size && path.sha256().equals(release.sha256, true)) { "Installateur Hub modifié" }
+        require(path.fileSize() == release.size && path.sha256().equals(release.sha256, true)) { tr("Installateur Hub modifié") }
         if (!Host.windows) {
             // Native package managers own elevation and replacement of installed files.
             // Opening the verified installer lets the desktop ask for any required credentials.

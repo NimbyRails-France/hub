@@ -1,18 +1,25 @@
 package fr.nimby.hub.model
 
+import fr.nimby.hub.i18n.tr
+
 import kotlinx.serialization.Serializable
 
-@Serializable enum class HubProfile(val label: String) { PLAY("Jouer"), DEVELOP("Développer") }
-@Serializable enum class ModOrigin { PUBLISHED, LOCAL }
-enum class HubPage(val label: String, val kind: String?) {
-    MODS("Mods", "native-mod"), TOOLS("Utilitaires", "tco"), SDK("SDK", "sdk"),
-    ACTIVITY("Téléchargements", null), SETTINGS("Paramètres", null)
+@Serializable enum class HubProfile(val sourceLabel: String) {
+    PLAY("Jouer"), DEVELOP("Développer");
+    val label get() = tr(sourceLabel)
 }
-enum class PathSetting(val label: String, val development: Boolean = false, val file: Boolean = false) {
+@Serializable enum class ModOrigin { PUBLISHED, LOCAL }
+enum class HubPage(private val sourceLabel: String, val kind: String?) {
+    MODS("Mods", "native-mod"), TOOLS("Utilitaires", "tco"), SDK("SDK", "sdk"),
+    ACTIVITY("Téléchargements", null), SETTINGS("Paramètres", null);
+    val label get() = tr(sourceLabel)
+}
+enum class PathSetting(private val sourceLabel: String, val development: Boolean = false, val file: Boolean = false) {
     GAME("Dossier du jeu"), MODS("Installation des mods"), TOOLS("Installation des utilitaires"),
     SDK("Installation des SDK"), LOCAL_MODS("Projets locaux de mods", true),
     LOCAL_TOOLS("Projets locaux d’utilitaires", true), DEVELOPMENT("Installation de développement", true),
-    KOTLIN_SDK("Kit SDK Kotlin pour compiler", true), IDEA("Exécutable IntelliJ IDEA", true, true)
+    KOTLIN_SDK("Kit SDK Kotlin pour compiler", true), IDEA("Exécutable IntelliJ IDEA", true, true);
+    val label get() = tr(sourceLabel)
 }
 @Serializable data class HubPaths(
     val mods: String = "", val tools: String = "", val sdk: String = "",
@@ -42,7 +49,14 @@ fun HubSettings.path(setting: PathSetting): String = when (setting) {
     val sdkDirectory: String = "", val fingerprint: String = "", val error: String = "",
     // Snapshot of the successful build's input, never inferred from today's kit.
     val sdkVersion: String = "",
-)
+) {
+    // Persist the existing source values so old settings keep working in either
+    // language. Unknown diagnostic values remain literal, including braces.
+    val displayStatus get() = if (status in buildStatuses) tr(status) else status
+}
+private val buildStatuses = setOf("À compiler", "À recompiler avec le nouveau SDK", "Paquet à importer",
+    "Paquet prêt à tester", "Compilation en cours", "Préparation en cours", "Prêt à tester",
+    "Compilation annulée", "Compilation ou préparation échouée")
 @Serializable data class DevelopmentSettings(
     val origins: Map<String, ModOrigin> = emptyMap(),
     val projects: Map<String, LocalProject> = emptyMap(),
@@ -72,20 +86,20 @@ object ProfileRules {
         if (!settings.developing) return settings.installed
         val result = settings.installed.toMutableMap()
         if (settings.development.sdkVersion.isNotBlank()) result["sdk"] =
-            settings.development.sdkVersions[settings.development.sdkVersion] ?: error("Version SDK sélectionnée absente")
+            settings.development.sdkVersions[settings.development.sdkVersion] ?: error(tr("Version SDK sélectionnée absente"))
         settings.development.origins.filterValues { it == ModOrigin.LOCAL }.forEach { (id, _) ->
-            require(settings.development.builds[id]?.ready == true) { "$id : compilation ou préparation requise" }
-            result[id] = settings.development.prepared[id] ?: error("$id : résultat local absent")
+            require(settings.development.builds[id]?.ready == true) { tr("{0} : compilation ou préparation requise", id) }
+            result[id] = settings.development.prepared[id] ?: error(tr("{0} : résultat local absent", id))
         }
         return result
     }
     fun validate(records: Map<String, InstalledProject>, gameHash: String) {
         val modIds = mutableSetOf<String>()
         records.forEach { (id, record) ->
-            require(id == record.id) { "Identité de projet incohérente" }
+            require(id == record.id) { tr("Identité de projet incohérente") }
             val project = record.asProject()
             if (record.kind == "native-mod") {
-                require(!project.modId.isNullOrBlank() && modIds.add(project.modId.lowercase())) { "Identifiant de mod absent ou déjà utilisé : ${record.name}" }
+                require(!project.modId.isNullOrBlank() && modIds.add(project.modId.lowercase())) { tr("Identifiant de mod absent ou déjà utilisé : {0}", record.name) }
             }
             val reason = ProjectRules.incompatibility(project, gameHash, records)
             require(reason == null) { "${record.name} : $reason" }

@@ -1,10 +1,12 @@
 package fr.nimby.hub.model
 
+import fr.nimby.hub.i18n.tr
+
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 val hubJson = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
-const val HUB_VERSION = "0.4.1-alpha.4"
+const val HUB_VERSION = "0.4.1-alpha.5"
 
 @Serializable
 data class Project(
@@ -72,6 +74,7 @@ data class HubSettings(
     val activeDevelopment: Map<String, InstalledProject> = emptyMap(),
     val legacyProtection: Boolean = false,
     val disableDeveloperAfterApply: Boolean = false,
+    val language: String = "auto",
 ) {
     fun selectedChannel(id: String) = channels[id]?.takeIf { it in listOf("stable", "beta", "alpha") } ?: "stable"
     val developing get() = developerMode && profile == HubProfile.DEVELOP
@@ -101,7 +104,7 @@ object Versions {
     fun valid(value: String) = format.matches(value)
     fun channel(value: String) = format.matchEntire(value)?.groupValues?.get(4)?.ifEmpty { "stable" }
     fun compare(left: String, right: String): Int {
-        require(valid(left) && valid(right)) { "Version invalide" }
+        require(valid(left) && valid(right)) { tr("Version invalide") }
         val l = format.matchEntire(left)!!.groupValues
         val r = format.matchEntire(right)!!.groupValues
         for (i in 1..3) if (l[i] != r[i]) return l[i].toInt().compareTo(r[i].toInt())
@@ -115,38 +118,35 @@ object ProjectRules {
     val identifier = Regex("[a-z][a-z0-9-]{0,63}")
     val hash = Regex("[a-fA-F0-9]{64}")
     val module = Regex("[A-Za-z0-9][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)*\\.(dll|so|dylib)")
-    private val officialAsset = Regex("https://github\\.com/NimbyRails-France/[a-zA-Z0-9_-]+/releases/download/[^?#]+")
     fun validModule(value: String?) = value != null && value.length < 200 && module.matches(value)
-    // Legacy GitHub links remain readable for old profiles/imports. The active
-    // server source requires NRF-hosted assets before every network download.
-    fun officialUrl(value: String) = DistributionLocation.official(value) || officialAsset.matches(value)
+    fun officialUrl(value: String) = DistributionLocation.official(value) || DistributionLocation.github(value)
     fun validate(project: Project, remote: Boolean = true, requireArtifact: Boolean = true) {
-        require(identifier.matches(project.id)) { "Identifiant de projet invalide" }
-        require(project.platform in setOf("windows-x64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64")) { "Plateforme inconnue" }
-        require(project.kind in setOf("sdk", "tco", "native-mod")) { "Type de projet inconnu" }
-        require(Versions.valid(project.version)) { "Version invalide" }
-        require(project.channel == null || project.channel == Versions.channel(project.version)) { "Canal incompatible avec la version" }
-        if (remote) require(officialUrl(project.url)) { "Adresse de release non officielle" }
-        if (remote || requireArtifact) require(project.size in 1..536_870_912 && hash.matches(project.sha256)) { "Taille ou empreinte invalide" }
-        require(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,100}").matches(project.rootFolder)) { "Racine d'archive invalide" }
-        require(project.gameSha256.isNotEmpty() && project.gameSha256.all(hash::matches)) { "Versions du jeu absentes ou invalides" }
-        require((project.sdkMin == null) == (project.sdkMaxExclusive == null)) { "Intervalle SDK incomplet" }
+        require(identifier.matches(project.id)) { tr("Identifiant de projet invalide") }
+        require(project.platform in setOf("windows-x64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64")) { tr("Plateforme inconnue") }
+        require(project.kind in setOf("sdk", "tco", "native-mod")) { tr("Type de projet inconnu") }
+        require(Versions.valid(project.version)) { tr("Version invalide") }
+        require(project.channel == null || project.channel == Versions.channel(project.version)) { tr("Canal incompatible avec la version") }
+        if (remote) require(officialUrl(project.url)) { tr("Adresse de release non officielle") }
+        if (remote || requireArtifact) require(project.size in 1..536_870_912 && hash.matches(project.sha256)) { tr("Taille ou empreinte invalide") }
+        require(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,100}").matches(project.rootFolder)) { tr("Racine d'archive invalide") }
+        require(project.gameSha256.isNotEmpty() && project.gameSha256.all(hash::matches)) { tr("Versions du jeu absentes ou invalides") }
+        require((project.sdkMin == null) == (project.sdkMaxExclusive == null)) { tr("Intervalle SDK incomplet") }
         project.sdkMin?.let { minimum ->
             require(Versions.valid(minimum) && Versions.valid(project.sdkMaxExclusive!!))
             require(Versions.compare(minimum, project.sdkMaxExclusive) < 0)
         }
         project.loaderApi?.let {
-            require(it == 1 && project.kind in setOf("sdk", "native-mod")) { "API du chargeur incompatible" }
+            require(it == 1 && project.kind in setOf("sdk", "native-mod")) { tr("API du chargeur incompatible") }
             if (project.kind == "native-mod") {
-                require(validModule(project.module)) { "Nom de bibliothèque native invalide" }
+                require(validModule(project.module)) { tr("Nom de bibliothèque native invalide") }
                 val extension = when (project.platform.substringBefore('-')) {
                     "windows" -> ".dll"
                     "linux" -> ".so"
                     "macos" -> ".dylib"
-                    else -> error("Plateforme inconnue")
+                    else -> error(tr("Plateforme inconnue"))
                 }
                 require(project.module!!.endsWith(extension, ignoreCase = project.platform.startsWith("windows-"))) {
-                    "Bibliothèque native incompatible avec ${project.platform}"
+                    tr("Bibliothèque native incompatible avec {0}", project.platform)
                 }
             }
         }
@@ -154,16 +154,16 @@ object ProjectRules {
     }
 
     fun incompatibility(project: Project, gameHash: String, installed: Map<String, InstalledProject>): String? {
-        if (gameHash.isEmpty() || project.gameSha256.none { it.equals(gameHash, true) }) return "Version du jeu non prise en charge"
+        if (gameHash.isEmpty() || project.gameSha256.none { it.equals(gameHash, true) }) return tr("Version du jeu non prise en charge")
         val sdk = installed["sdk"]
         val loader = sdk?.loaderApi ?: if (sdk != null && Versions.compare(sdk.version, "0.7.2") >= 0) 1 else 0
-        if (project.kind != "sdk" && (project.loaderApi ?: 0) > loader) return "Mise à jour du NRF Loader requise"
+        if (project.kind != "sdk" && (project.loaderApi ?: 0) > loader) return tr("Mise à jour du NRF Loader requise")
         if (project.sdkMin != null && (sdk == null || Versions.compare(sdk.version, project.sdkMin) < 0 ||
-                    Versions.compare(sdk.version, project.sdkMaxExclusive!!) >= 0)) return "SDK ${project.sdkMin} requis"
+                    Versions.compare(sdk.version, project.sdkMaxExclusive!!) >= 0)) return tr("SDK {0} requis", project.sdkMin)
         if (project.kind == "sdk") for (dependent in installed.values) {
-            if ((dependent.loaderApi ?: 0) > (project.loaderApi ?: 0)) return "NRF Loader requis par ${dependent.name}"
+            if ((dependent.loaderApi ?: 0) > (project.loaderApi ?: 0)) return tr("NRF Loader requis par {0}", dependent.name)
             if (dependent.sdkMin != null && (Versions.compare(project.version, dependent.sdkMin) < 0 ||
-                        Versions.compare(project.version, dependent.sdkMaxExclusive!!) >= 0)) return "SDK incompatible avec ${dependent.name}"
+                        Versions.compare(project.version, dependent.sdkMaxExclusive!!) >= 0)) return tr("SDK incompatible avec {0}", dependent.name)
         }
         return null
     }
@@ -174,7 +174,7 @@ object ProjectRules {
         require(release.channel == null || release.channel == Versions.channel(release.version))
         require(release.installer == null || release.installer == when (release.platform.substringBefore('-')) {
             "windows" -> "jpackage-exe"; "linux" -> "deb"; "macos" -> "dmg"; else -> ""
-        }) { "Installateur incompatible avec la plateforme" }
+        }) { tr("Installateur incompatible avec la plateforme") }
         require(DistributionLocation.forRelease(release.url, "hub", release.version) ||
             release.url.startsWith("https://github.com/NimbyRails-France/hub/releases/download/"))
         require(hash.matches(release.sha256) && release.size in 1..536_870_912)

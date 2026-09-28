@@ -17,7 +17,7 @@ AppVersion={#Version}
 VersionInfoVersion={#NativeVersion}.0
 AppPublisher=NimbyRails France
 VersionInfoCompany=NimbyRails France
-VersionInfoDescription=Installation de NimbyRails France Hub
+VersionInfoDescription=NimbyRails France Hub Setup
 VersionInfoProductName=NimbyRails France Hub
 AppPublisherURL=https://github.com/NimbyRails-France/hub
 DefaultDirName={localappdata}\Programs\NimbyRailsFranceHub
@@ -38,7 +38,12 @@ SetupMutex=NRFHubInstaller
 WizardStyle=modern
 SetupLogging=yes
 [Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+[CustomMessages]
+english.LaunchHub=Launch NRF Hub
+french.LaunchHub=Lancer NRF Hub
+#include "languages.iss"
 [Files]
 Source: "{#Stage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Also brand shortcuts for CI images that use the stock JDK launcher.
@@ -46,7 +51,7 @@ Source: "{#HubIcon}"; DestDir: "{app}\app"; DestName: "NRFHub.ico"; Flags: ignor
 [Icons]
 Name: "{group}\NRF Hub"; Filename: "{app}\NRFHub.exe"; IconFilename: "{app}\app\NRFHub.ico"
 [Run]
-Filename: "{app}\NRFHub.exe"; Description: "Lancer NRF Hub"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\NRFHub.exe"; Description: "{cm:LaunchHub}"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\NRFHub.exe"; Flags: nowait; Check: RelaunchRequested
 [Code]
 #include "replacement.iss"

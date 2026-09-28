@@ -14,6 +14,62 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ControllerTest {
+    @AfterTest fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
+
+    @Test fun catalogueChangeNotifiesEachNewVersionOnceWithoutInstalling() = runTest {
+        val root = Files.createTempDirectory("nrf-release-notification-")
+        val store = SettingsStore(root)
+        store.write(HubSettings(automatic = false, channels = mapOf("sdk" to "alpha"),
+            installed = mapOf("sdk" to InstalledProject("sdk", "sdk", "0.8.0-alpha.1", root.resolve("installed").toString()))))
+        var latest = "0.8.0-alpha.1"
+        var tick: (suspend () -> Unit)? = null
+        val source = object : Source() {
+            override suspend fun catalogue(channels: Map<String, String>): Catalogue {
+                catalogueCalls++
+                assertEquals("alpha", channels["sdk"])
+                return Catalogue(1, listOf(Project("sdk", "sdk", latest, "SDK")))
+            }
+            override suspend fun listen(onEvent: suspend () -> Unit) { tick = onEvent; awaitCancellation() }
+        }
+        val notifications = mutableListOf<String>()
+        val controller = HubController(store, backgroundScope, source, notify = { _, text -> notifications += text }, journal = HubLog(root.resolve("logs")))
+        suspend fun refreshed(version: String) {
+            runCurrent()
+            controller.state.first { !it.busy && it.projects.singleOrNull()?.version == version }
+        }
+        try {
+            controller.start(); refreshed(latest)
+            latest = "0.8.0-alpha.2"; checkNotNull(tick).invoke(); refreshed(latest)
+            assertEquals(listOf("SDK 0.8.0-alpha.2"), notifications)
+            checkNotNull(tick).invoke(); refreshed(latest)
+            assertEquals(1, notifications.size)
+            latest = "0.8.0-alpha.3"; checkNotNull(tick).invoke(); refreshed(latest)
+            assertEquals(2, notifications.size)
+            assertEquals("0.8.0-alpha.3", store.read().notified["sdk"])
+            assertEquals("0.8.0-alpha.1", store.read().installed.getValue("sdk").version)
+            assertEquals(0, source.downloadCalls)
+        } finally { controller.close() }
+    }
+
+    @Test fun languageIsSavedWithoutRestartingNetworkOrChangingProfile() = runTest {
+        val root = Files.createTempDirectory("nrf-language-")
+        val store = SettingsStore(root)
+        store.write(HubSettings(language = "fr", developerMode = true, profile = HubProfile.DEVELOP))
+        val source = Source()
+        val controller = HubController(store, backgroundScope, source, journal = HubLog(root.resolve("logs")))
+        try {
+            controller.start(); runCurrent()
+            val before = controller.state.value
+            val calls = source.catalogueCalls to source.relayCalls
+            controller.changeLanguage("en"); runCurrent()
+            assertEquals("en", store.read().language)
+            assertEquals("en", fr.nimby.hub.i18n.I18n.language)
+            assertEquals(calls, source.catalogueCalls to source.relayCalls)
+            assertEquals(before.settings.copy(language = "en"), controller.state.value.settings)
+            assertEquals(before.log, controller.state.value.log)
+            assertEquals("Live notifications: connecting…", controller.state.value.relayStatus)
+        } finally { controller.close() }
+    }
     private open class Source : ReleaseSource {
         var catalogueCalls = 0
         var downloadCalls = 0

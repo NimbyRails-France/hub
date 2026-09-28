@@ -3,6 +3,18 @@
 Hub **0.4.1-alpha.4** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
 NimbyRails-France. Le projet s'ouvre dans IntelliJ IDEA et se compile avec Gradle.
 
+L'interface propose français et anglais dans **Paramètres > Langue**. Le mode
+automatique utilise la langue du système (français pour `fr`, anglais sinon).
+Le choix est mémorisé et prend effet sans relancer les opérations. Les journaux
+historiques et diagnostics externes restent inchangés. Le catalogue conserve
+les noms fournis par les manifestes des projets.
+
+The interface supports French and English under **Settings > Language**.
+Automatic mode follows the system language (`fr` selects French; otherwise
+English). The saved preference applies without restarting operations. Historical
+logs and external diagnostics remain unchanged. Project names come from their
+distribution manifests.
+
 ## Développer
 
 JDK 21 installé, wrapper Gradle fourni. Aucun Qt, CMake ou compilateur C++ requis.
@@ -17,7 +29,19 @@ Guide : [IntelliJ, architecture et mode développeur](docs/kotlin-intellij.md).
 L'application autonome inclut Java. `package.ps1` produit l'installateur Windows
 Inno Setup dans `dist/` ; il conserve l'identité d'installation du Hub 0.2.
 Les projets et paquets sont servis par `https://releases.nimbyrails-france.fr`.
-Le Hub n'utilise plus l'API GitHub pour découvrir ou télécharger les versions.
+Le serveur NRF est prioritaire. S'il est indisponible, le Hub utilise les releases
+GitHub officielles, avec les mêmes versions, tailles et SHA-256. Chaque dépôt
+publie aussi `catalogue/releases.json` : le Hub le vérifie toutes les minutes
+pour découvrir les nouveautés sans token et sans consommer le quota de l'API.
+L'API publique sert seulement de secours aux dépôts sans catalogue ; ses réponses
+sont conservées quinze minutes et ses appels sont plafonnés. Un retour du serveur
+NRF est détecté automatiquement. Une opération longue peut retarder la vérification.
+
+The NRF server is preferred, with official GitHub releases as fallback. Each
+repository publishes a public `catalogue/releases.json` checked every minute,
+without a token or normal API polling. API bootstrap is cached for fifteen
+minutes and bounded. Both sources retain channel, version, size and SHA-256
+checks. Server recovery is automatic; a busy operation may delay checking.
 Chaque projet et le Hub conservent leur choix Stable, Bêta ou Alpha ; il n'y a
 pas de basculement implicite vers un autre canal.
 

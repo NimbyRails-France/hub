@@ -1,5 +1,7 @@
 package fr.nimby.hub.install
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.model.*
 import fr.nimby.hub.platform.*
 import fr.nimby.hub.storage.*
@@ -26,8 +28,8 @@ data class InstallRequest(
 
 class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), private val log: (String) -> Unit = {}) {
     fun execute(request: InstallRequest): InstalledProject? {
-        require(ProjectRules.identifier.matches(request.project.id)) { "Identifiant de projet invalide" }
-        if (request.action == "install") require(request.project.platform == Host.id) { "Ce paquet cible ${request.project.platform}, ce système est ${Host.id}" }
+        require(ProjectRules.identifier.matches(request.project.id)) { tr("Identifiant de projet invalide") }
+        if (request.action == "install") require(request.project.platform == Host.id) { tr("Ce paquet cible {0}, ce système est {1}", request.project.platform, Host.id) }
         require(request.action in setOf("install", "remove", "rollback"))
         val destination = Path(request.destination).toAbsolutePath().normalize()
         require(Path(request.destination).isAbsolute && destination.parent != null && destination.toString().length >= 8)
@@ -36,18 +38,18 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
         while (ancestor != null) {
             if (ancestor.exists(LinkOption.NOFOLLOW_LINKS)) {
                 val attributes = Files.readAttributes(ancestor, java.nio.file.attribute.BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
-                require(!attributes.isSymbolicLink && !attributes.isOther) { "Un dossier parent est un lien" }
+                require(!attributes.isSymbolicLink && !attributes.isOther) { tr("Un dossier parent est un lien") }
             }
             ancestor = ancestor.parent
         }
         val previous = destination.resolveSibling("${destination.fileName}.nrf-previous")
         val game = Path(request.gameDirectory).toAbsolutePath().normalize()
         val old = if (destination.exists(LinkOption.NOFOLLOW_LINKS)) record(destination, request.project.id) else null
-        require(!request.detached || (request.action == "install" && old == null)) { "Une préparation doit utiliser un nouveau dossier" }
+        require(!request.detached || (request.action == "install" && old == null)) { tr("Une préparation doit utiliser un nouveau dossier") }
         // Detached preparation writes a new package only. It may run while the
         // game is open, but must never overlap the game or replace any package.
         if (request.detached) require(!destination.startsWith(game) && !game.startsWith(destination) && !previous.exists()) {
-            "La préparation doit utiliser un dossier neuf, séparé du jeu"
+            tr("La préparation doit utiliser un dossier neuf, séparé du jeu")
         } else windows.requireClosed(game, destination)
         val result = when (request.action) {
             "remove" -> { remove(destination, previous, game, requireNotNull(old)); null }
@@ -61,7 +63,7 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
     private fun record(path: Path, id: String): InstalledProject {
         windows.checkTree(path)
         val record = hubJson.decodeFromString<InstalledProject>(path.resolve(".nrf-project.json").jsonText())
-        require(record.id == id) { "Ce dossier appartient à un autre projet" }
+        require(record.id == id) { tr("Ce dossier appartient à un autre projet") }
         return record
     }
 
@@ -77,7 +79,7 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
 
     private fun supportedGame(game: Path, hashes: List<String>, expected: String? = null) {
         val actual = Host.game(game).sha256()
-        require(hashes.any { it.equals(actual, true) } && (expected == null || actual.equals(expected, true))) { "Version du jeu modifiée ou non prise en charge" }
+        require(hashes.any { it.equals(actual, true) } && (expected == null || actual.equals(expected, true))) { tr("Version du jeu modifiée ou non prise en charge") }
     }
 
     private fun links(record: InstalledProject) = listOfNotNull(record.modLink, record.loaderLink).distinct().map(::Path)
@@ -85,13 +87,13 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
     private fun validateLinks(record: InstalledProject, destination: Path) {
         links(record).forEach { link ->
             val target = windows.linkTarget(link)
-            require(target == null || Path(target).toAbsolutePath().normalize() == destination) { "La jonction appartient à un autre projet" }
+            require(target == null || Path(target).toAbsolutePath().normalize() == destination) { tr("La jonction appartient à un autre projet") }
         }
     }
 
     private fun shortcut(record: InstalledProject, destination: Path, remove: Boolean = false) {
         if (record.kind == "tco") runCatching { windows.shortcut(record.id, destination, remove) }
-            .onFailure { log("Raccourci : ${it.message}") }
+            .onFailure { log(tr("Raccourci : {0}", it.message)) }
     }
 
     private fun remove(destination: Path, previous: Path, game: Path, old: InstalledProject) {
@@ -139,9 +141,9 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
         ProjectRules.validate(project, remote = false)
         supportedGame(game, project.gameSha256, request.expectedGameHash)
         val archive = Path(request.archive)
-        require(archive.fileSize() == project.size && archive.sha256().equals(project.sha256, true)) { "Archive : empreinte ou taille incorrecte" }
-        require(old == null || old.kind == project.kind) { "Le type du projet a changé" }
-        if (!request.detached && project.kind == "sdk" && old == null) require(!game.resolve("NimbyRailsSDK-install.json").exists() && !game.resolve("NimbyRailsFranceSDK-install.json").exists()) { "Un chargeur SDK est déjà présent hors de cette installation. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réessayez l'installation." }
+        require(archive.fileSize() == project.size && archive.sha256().equals(project.sha256, true)) { tr("Archive : empreinte ou taille incorrecte") }
+        require(old == null || old.kind == project.kind) { tr("Le type du projet a changé") }
+        if (!request.detached && project.kind == "sdk" && old == null) require(!game.resolve("NimbyRailsSDK-install.json").exists() && !game.resolve("NimbyRailsFranceSDK-install.json").exists()) { tr("Un chargeur SDK est déjà présent hors de cette installation. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réessayez l'installation.") }
         destination.parent.createDirectories()
         val stage = Files.createTempDirectory(destination.parent, ".nrf-stage-")
         try {
@@ -150,25 +152,25 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
                 project.gameSha256, project.sdkMin, project.sdkMaxExclusive, project.loaderApi, project.module,
                 installedUtc = Instant.now().toString(), modId = project.modId, origin = request.origin, platform = project.platform)
             when (project.kind) {
-                "sdk" -> require(stage.resolve(if (Host.linux) "loader/${LinuxSdkInstallation.library}" else Host.proxyInstaller).isRegularFile()) { "Chargeur SDK absent" }
-                "tco" -> require(stage.resolve(Host.tcoName).isRegularFile()) { "Exécutable TCO absent" }
+                "sdk" -> require(stage.resolve(if (Host.linux) "loader/${LinuxSdkInstallation.library}" else Host.proxyInstaller).isRegularFile()) { tr("Chargeur SDK absent") }
+                "tco" -> require(stage.resolve(Host.tcoName).isRegularFile()) { tr("Exécutable TCO absent") }
                 "native-mod" -> {
-                    require(stage.resolve("mod.txt").isRegularFile()) { "mod.txt absent" }
+                    require(stage.resolve("mod.txt").isRegularFile()) { tr("mod.txt absent") }
                     val mods = request.nativeModsDirectory?.let(::Path) ?: Host.modsDirectory()
                     val modLink = mods.toAbsolutePath().normalize().resolve(project.modId!!).toString()
-                    require(old == null || old.modLink == modLink) { "Identifiant de mod modifié" }
+                    require(old == null || old.modLink == modLink) { tr("Identifiant de mod modifié") }
                     if (!request.detached) next = next.copy(modLink = modLink)
                     if (project.loaderApi == 1) {
-                        require(stage.resolve(project.module!!).isRegularFile()) { "DLL du mod absente" }
+                        require(stage.resolve(project.module!!).isRegularFile()) { tr("DLL du mod absente") }
                         val manifest = "[NRFMod]\nlibrary=${project.module}\n"
                         stage.resolve("nrf-mod.ini").writeBytes(if (Host.windows)
                             ("\uFEFF" + manifest.replace("\n", "\r\n")).toByteArray(Charsets.UTF_16LE)
                             else manifest.toByteArray(Charsets.UTF_8))
                         if (!request.detached) next = next.copy(loaderLink = game.resolve("NRFMods/${project.id}").toString())
                     }
-                    require(old?.loaderLink == null || old.loaderLink == next.loaderLink) { "Enregistrement du chargeur modifié" }
+                    require(old?.loaderLink == null || old.loaderLink == next.loaderLink) { tr("Enregistrement du chargeur modifié") }
                     validateLinks(next, destination)
-                    if (old == null) require(links(next).all { windows.linkTarget(it) == null }) { "Mod déjà enregistré hors du Hub" }
+                    if (old == null) require(links(next).all { windows.linkTarget(it) == null }) { tr("Mod déjà enregistré hors du Hub") }
                 }
             }
             stage.resolve(".nrf-project.json").atomicWrite(hubJson.encodeToString(next))

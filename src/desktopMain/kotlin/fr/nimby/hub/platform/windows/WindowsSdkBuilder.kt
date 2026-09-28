@@ -1,5 +1,7 @@
 package fr.nimby.hub.platform.windows
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.install.LocalProjects
 import fr.nimby.hub.install.KotlinKits
 import fr.nimby.hub.model.*
@@ -20,9 +22,9 @@ object WindowsSdkBuilder {
         val parent = LocalProjects.inside(root, "install/hub").createDirectories()
         val destination = Files.createTempDirectory(parent, "sdk-")
         val script = LocalProjects.inside(root, "tools/windows/build-for-hub.ps1")
-        output("SDK ${local.project.version} · construction locale dans $destination")
+        output(tr("SDK {0} · construction locale dans {1}", local.project.version, destination))
         LocalProjects.run(listOf("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-            "-File", script.toString(), "-OutputDirectory", destination.toString()), root, "La compilation SDK", output)
+            "-File", script.toString(), "-OutputDirectory", destination.toString()), root, tr("La compilation SDK"), output)
         return readResult(local, destination)
     }
 
@@ -33,10 +35,10 @@ object WindowsSdkBuilder {
         ProjectRules.validate(project, remote = false)
         require(project.id == "sdk" && project.kind == "sdk" && project.platform == "windows-x64" &&
             project.version == local.project.version && project.rootFolder == local.project.rootFolder &&
-            project.gameSha256 == local.project.gameSha256 && project.loaderApi == 1) { "Le paquet SDK ne correspond pas aux sources choisies" }
+            project.gameSha256 == local.project.gameSha256 && project.loaderApi == 1) { tr("Le paquet SDK ne correspond pas aux sources choisies") }
         val archive = LocalProjects.inside(destination, receipt.archive)
         require(archive.isRegularFile() && archive.fileSize() == project.size && archive.sha256().equals(project.sha256, true)) {
-            "Le paquet SDK produit est absent ou son empreinte a changé"
+            tr("Le paquet SDK produit est absent ou son empreinte a changé")
         }
         val kit = LocalProjects.inside(destination, receipt.kotlinKit)
         KotlinKits.validate(kit, project.version)

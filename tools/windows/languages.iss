@@ -1,0 +1,27 @@
+﻿; Included inside [CustomMessages]. Transaction logs stay in their original language.
+english.LinkedPath=Linked directory or file not allowed: %1
+french.LinkedPath=Dossier ou fichier lié interdit : %1
+english.MoveFailed=Cannot move %1. Close the Hub and try again.
+french.MoveFailed=Impossible de déplacer %1. Fermez le Hub et recommencez.
+english.CleanupFailed=Backup preserved; cleanup failed: %1
+french.CleanupFailed=Sauvegarde conservée, nettoyage impossible : %1
+english.RecoveryState=Unknown recovery state: %1
+french.RecoveryState=État de restauration inconnu : %1
+english.RecoveryLog=Cannot access the recovery log
+french.RecoveryLog=Journal de restauration inaccessible
+english.BroadDirectory=Installation directory is too broad
+french.BroadDirectory=Dossier d’installation trop général
+english.SeparateData=The program directory must be separate from user data
+french.SeparateData=Le dossier du programme doit être séparé des données utilisateur
+english.UnknownDirectory=This non-empty directory is not a recognized NRF Hub installation.
+french.UnknownDirectory=Ce dossier non vide ne correspond pas à une installation NRF Hub reconnue.
+english.BackupLog=Backup without a valid log: %1
+french.BackupLog=Sauvegarde sans journal valide : %1
+english.BackupFailed=Cannot create backup
+french.BackupFailed=Sauvegarde impossible
+english.TransactionLog=Cannot access the transaction log
+french.TransactionLog=Journal de transaction inaccessible
+english.MissingComponents=Incomplete installation: main components missing
+french.MissingComponents=Installation incomplète : composants principaux absents
+english.CommitFailed=Cannot commit installation
+french.CommitFailed=Validation de l’installation impossible

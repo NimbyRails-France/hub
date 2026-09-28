@@ -1,5 +1,7 @@
 package fr.nimby.hub.install
 
+import fr.nimby.hub.i18n.tr
+
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.nio.file.Files
 import java.nio.file.Path
@@ -22,9 +24,9 @@ object Archives {
             val entries = zip.entries
             while (entries.hasMoreElements()) {
                 val entry = entries.nextElement()
-                require(++count <= 30_000) { "Trop de fichiers dans l'archive" }
+                require(++count <= 30_000) { tr("Trop de fichiers dans l'archive") }
                 val name = entry.name.replace('\\', '/')
-                require(name.startsWith(prefix) && !entry.isUnixSymlink && zip.canReadEntryData(entry)) { "Archive invalide ou lien interdit" }
+                require(name.startsWith(prefix) && !entry.isUnixSymlink && zip.canReadEntryData(entry)) { tr("Archive invalide ou lien interdit") }
                 val relative = name.removePrefix(prefix)
                 if (relative.isEmpty()) continue
                 val parts = relative.trimEnd('/').split('/')
@@ -33,10 +35,10 @@ object Archives {
                         segment.none { it in ":<>\"|?*" || it.code < 32 } &&
                         !segment.endsWith('.') && !segment.endsWith(' ') &&
                         !Regex("(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\..*)?").matches(segment)
-                }) { "Chemin d'archive dangereux" }
+                }) { tr("Chemin d'archive dangereux") }
                 val output = root.resolve(relative).normalize()
-                require(output.startsWith(root) && output != root) { "Chemin hors du dossier de préparation" }
-                require(names.add(relative.trimEnd('/').lowercase())) { "Entrée d'archive dupliquée" }
+                require(output.startsWith(root) && output != root) { tr("Chemin hors du dossier de préparation") }
+                require(names.add(relative.trimEnd('/').lowercase())) { tr("Entrée d'archive dupliquée") }
                 if (entry.isDirectory) { output.createDirectories(); continue }
                 output.parent.createDirectories()
                 zip.getInputStream(entry).use { input ->
@@ -46,7 +48,7 @@ object Archives {
                             val size = input.read(bytes)
                             if (size < 0) break
                             expanded += size
-                            require(expanded <= 2_147_483_648L) { "Archive décompressée supérieure à 2 Go" }
+                            require(expanded <= 2_147_483_648L) { tr("Archive décompressée supérieure à 2 Go") }
                             target.write(bytes, 0, size)
                         }
                     }

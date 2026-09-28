@@ -1,5 +1,7 @@
 package fr.nimby.hub.platform
 
+import fr.nimby.hub.i18n.tr
+
 import java.nio.file.*
 import kotlin.io.path.*
 import fr.nimby.hub.install.LinuxSdkInstallation
@@ -14,7 +16,7 @@ class UnixPlatform : DesktopPlatform {
         val executable = canonical(Host.game(game))
         val installation = canonical(destination)
         require(running().none { it == executable || it.startsWith(installation) } && !mappedInstallation(installation)) {
-            "Fermez le jeu et les outils utilisant cette installation."
+            tr("Fermez le jeu et les outils utilisant cette installation.")
         }
     }
     private fun mappedInstallation(installation: Path): Boolean = ProcessHandle.allProcesses().use { processes ->
@@ -38,10 +40,10 @@ class UnixPlatform : DesktopPlatform {
     override fun requestGameClose(game: Path) {
         // SIGTERM can bypass the game's save dialog. Until a window-manager
         // close request is available, let the player finish the running game.
-        require(!gameRunning(game)) { "Enregistrez puis fermez NIMBY Rails dans sa fenêtre avant de relancer le profil Linux." }
+        require(!gameRunning(game)) { tr("Enregistrez puis fermez NIMBY Rails dans sa fenêtre avant de relancer le profil Linux.") }
     }
     override fun launchGame(game: Path) {
-        require(Host.game(game).isRegularFile()) { "Exécutable Linux introuvable" }
+        require(Host.game(game).isRegularFile()) { tr("Exécutable Linux introuvable") }
         val launch = LinuxSdkInstallation.installedLauncher(game)
         val home = Path(System.getProperty("user.home"))
         val wsl = !System.getenv("WSL_DISTRO_NAME").isNullOrBlank()
@@ -56,7 +58,7 @@ class UnixPlatform : DesktopPlatform {
             ProcessBuilder("steam", "-silent").start()
             val deadline = System.nanoTime() + 30_000_000_000L
             while (running().none { it.fileName.toString() == "steam" } && System.nanoTime() < deadline) Thread.sleep(250)
-            require(running().any { it.fileName.toString() == "steam" }) { "Ouvrez Steam puis relancez NIMBY Rails" }
+            require(running().any { it.fileName.toString() == "steam" }) { tr("Ouvrez Steam puis relancez NIMBY Rails") }
         }
         val graphics = home.resolve(".local/bin/wsl-vulkan-rtx")
         val command = (if (wsl && Files.isExecutable(graphics)) listOf(graphics.toString()) else emptyList()) + listOf("sh", launch.toString())
@@ -72,24 +74,24 @@ class UnixPlatform : DesktopPlatform {
     }
     override fun linkTarget(path: Path): String? {
         if (!path.exists(LinkOption.NOFOLLOW_LINKS)) return null
-        require(path.isSymbolicLink()) { "Le chemin existant n'est pas un lien : $path" }
+        require(path.isSymbolicLink()) { tr("Le chemin existant n'est pas un lien : {0}", path) }
         return path.parent.resolve(Files.readSymbolicLink(path)).toAbsolutePath().normalize().toString()
     }
     override fun createLink(path: Path, target: Path) {
         val expected = target.toAbsolutePath().normalize()
         val current = linkTarget(path)
-        if (current != null) { require(Path(current) == expected) { "Lien appartenant à une autre installation" }; return }
+        if (current != null) { require(Path(current) == expected) { tr("Lien appartenant à une autre installation") }; return }
         path.parent.createDirectories(); Files.createSymbolicLink(path, expected)
     }
     override fun removeLink(path: Path, target: Path) {
         val current = linkTarget(path) ?: return
-        require(Path(current) == target.toAbsolutePath().normalize()) { "Lien appartenant à une autre installation" }
+        require(Path(current) == target.toAbsolutePath().normalize()) { tr("Lien appartenant à une autre installation") }
         Files.delete(path)
     }
     override fun checkTree(path: Path) {
         Files.walk(path).use { files -> files.forEach { file ->
             val attributes = Files.readAttributes(file, java.nio.file.attribute.BasicFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
-            require(!attributes.isSymbolicLink && !attributes.isOther) { "Lien ou fichier spécial dans une installation gérée : $file" }
+            require(!attributes.isSymbolicLink && !attributes.isOther) { tr("Lien ou fichier spécial dans une installation gérée : {0}", file) }
         } }
     }
     override fun shortcut(id: String, destination: Path, remove: Boolean) {
@@ -99,7 +101,7 @@ class UnixPlatform : DesktopPlatform {
         val executable = destination.resolve(Host.tcoName).toAbsolutePath().toString()
         require(executable.none { it == '\n' || it == '\r' })
         val marker = "X-NRF-Target=$executable"
-        if (file.exists()) require(file.readLines().contains(marker)) { "Raccourci appartenant à une autre installation" }
+        if (file.exists()) require(file.readLines().contains(marker)) { tr("Raccourci appartenant à une autre installation") }
         if (remove) { file.deleteIfExists(); return }
         val quoted = executable.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`").replace("%", "%%")
         root.createDirectories()
@@ -107,7 +109,7 @@ class UnixPlatform : DesktopPlatform {
     }
     override fun proxy(directory: Path, game: Path, action: String) {
         require(action in setOf("Install", "Remove"))
-        require(supported && Host.architecture == "x64") { "Le SDK natif exige Linux x64" }
+        require(supported && Host.architecture == "x64") { tr("Le SDK natif exige Linux x64") }
         requireClosed(game, directory)
         if (action == "Install") LinuxSdkInstallation.install(directory, game) else LinuxSdkInstallation.remove(directory, game)
     }

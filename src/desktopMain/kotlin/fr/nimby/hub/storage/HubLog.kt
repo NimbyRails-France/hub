@@ -1,5 +1,7 @@
 package fr.nimby.hub.storage
 
+import fr.nimby.hub.i18n.tr
+
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
@@ -35,6 +37,6 @@ class HubLog(val directory: Path, private val name: String = "hub.log", private 
     } catch (error: Exception) {
         // Logging must not interrupt filesystem rollback. Surface the failure in
         // the UI/console instead of claiming the diagnostic was saved.
-        "Journal non enregistré ($file) : ${error.message}".also(System.err::println)
+        tr("Journal non enregistré ({0}) : {1}", file, error.message).also(System.err::println)
     }
 }

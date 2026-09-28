@@ -1,5 +1,7 @@
 package fr.nimby.hub.install
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.model.*
 import fr.nimby.hub.platform.*
 import fr.nimby.hub.storage.*
@@ -16,13 +18,13 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
     fun links(records: Map<String, InstalledProject>): Map<Path, Path> = buildMap {
         records.values.forEach { record ->
             listOfNotNull(record.modLink, record.loaderLink).forEach { link ->
-                require(put(Path(link).toAbsolutePath().normalize(), Path(record.directory).toAbsolutePath().normalize()) == null) { "Jonction dupliquée : $link" }
+                require(put(Path(link).toAbsolutePath().normalize(), Path(record.directory).toAbsolutePath().normalize()) == null) { tr("Jonction dupliquée : {0}", link) }
             }
         }
     }
 
     fun activate(game: Path, before: Map<String, InstalledProject>, after: Map<String, InstalledProject>, journal: Path, persist: () -> Unit) {
-        require(!journal.exists()) { "Une activation interrompue doit être restaurée avant de continuer." }
+        require(!journal.exists()) { tr("Une activation interrompue doit être restaurée avant de continuer.") }
         (before.values + after.values).forEach { windows.requireClosed(game, Path(it.directory)) }
         windows.requireClosed(game, game)
         ProfileRules.validate(after, Host.game(game).sha256())
@@ -31,14 +33,14 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
         val sdkRegistered = listOf("NimbyRailsFranceSDK-install.json", "NimbyRailsSDK-install.json").any { game.resolve(it).exists() }
         val replaceSdk = oldSdk != newSdk || (Host.windows && !sdkRegistered && newSdk != null)
         if (sdkRegistered) {
-            require(oldSdk != null) { "Un SDK installé hors du Hub est actif. Dans Paramètres, utilisez Réparer le chargeur SDK avant de basculer." }
-            require(windows.ownsSdk(Path(oldSdk), game)) { "Le SDK actif ne correspond plus à l’installation gérée par le Hub. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réappliquez le profil." }
+            require(oldSdk != null) { tr("Un SDK installé hors du Hub est actif. Dans Paramètres, utilisez Réparer le chargeur SDK avant de basculer.") }
+            require(windows.ownsSdk(Path(oldSdk), game)) { tr("Le SDK actif ne correspond plus à l’installation gérée par le Hub. Dans Paramètres, utilisez Réparer le chargeur SDK, puis réappliquez le profil.") }
         }
         val oldLinks = links(before)
         val newLinks = links(after)
         (oldLinks.keys + newLinks.keys).forEach { link ->
             val target = windows.linkTarget(link)?.let { Path(it).toAbsolutePath().normalize() }
-            require(target == null || target == oldLinks[link]) { "Jonction non gérée par le profil actif : $link" }
+            require(target == null || target == oldLinks[link]) { tr("Jonction non gérée par le profil actif : {0}", link) }
         }
         journal.atomicWrite(hubJson.encodeToString(Journal(before, after)))
         var removedSdk = false
@@ -56,13 +58,13 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
                 }
                 oldLinks.forEach { (link, target) -> windows.createLink(link, target) }
                 if (attemptedSdk) runCatching { windows.proxy(Path(newSdk!!), game, "Remove") }.onFailure {
-                    require(!game.resolve("NimbyRailsFranceSDK-install.json").exists() && !game.resolve("NimbyRailsSDK-install.json").exists()) { "SDK de test encore enregistré : ${it.message}" }
+                    require(!game.resolve("NimbyRailsFranceSDK-install.json").exists() && !game.resolve("NimbyRailsSDK-install.json").exists()) { tr("SDK de test encore enregistré : {0}", it.message) }
                 }
                 if (removedSdk) windows.proxy(Path(oldSdk!!), game, "Install")
                 journal.deleteIfExists()
             } catch (recovery: Exception) {
                 failure.addSuppressed(recovery)
-                throw IllegalStateException("Activation échouée ; restauration incomplète. Journal conservé : $journal. ${failure.message} / ${recovery.message}", failure)
+                throw IllegalStateException(tr("Activation échouée ; restauration incomplète. Journal conservé : {0}. {1} / {2}", journal, failure.message, recovery.message), failure)
             }
             throw failure
         }
@@ -76,18 +78,18 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
         (plan.before.values + plan.after.values).forEach { record ->
             windows.requireClosed(game, Path(record.directory))
             val owned = hubJson.decodeFromString<InstalledProject>(Path(record.directory, ".nrf-project.json").jsonText())
-            require(owned.id == record.id && owned.version == record.version) { "Installation de récupération modifiée" }
+            require(owned.id == record.id && owned.version == record.version) { tr("Installation de récupération modifiée") }
         }
         val old = links(plan.before)
         val next = links(plan.after)
         val current = (old.keys + next.keys).associateWith { link -> windows.linkTarget(link)?.let { Path(it).toAbsolutePath().normalize() } }
-        current.forEach { (link, target) -> require(target == null || target == old[link] || target == next[link]) { "Jonction étrangère : $link" } }
+        current.forEach { (link, target) -> require(target == null || target == old[link] || target == next[link]) { tr("Jonction étrangère : {0}", link) } }
         val sdkCandidates = listOfNotNull(plan.before["sdk"], plan.after["sdk"])
         val marker = listOf("NimbyRailsFranceSDK-install.json", "NimbyRailsSDK-install.json").any { game.resolve(it).exists() }
         if (marker) {
             val candidate = sdkCandidates.firstOrNull { record ->
                 windows.ownsSdk(Path(record.directory), game)
-            } ?: error("SDK actif non reconnu. Le journal de récupération est conservé.")
+            } ?: error(tr("SDK actif non reconnu. Le journal de récupération est conservé."))
             windows.proxy(Path(candidate.directory), game, "Remove")
         }
         plan.before["sdk"]?.let { windows.proxy(Path(it.directory), game, "Install") }
@@ -107,7 +109,7 @@ class ProfileActivation(private val windows: DesktopPlatform = desktopPlatform()
                 prior.origin == source.origin && Path(prior.directory).isDirectory()) prior else {
                 val target = root.resolve("sessions/$id-${java.util.UUID.randomUUID()}").toAbsolutePath().normalize()
                 require(!target.startsWith(sourcePath) && !sourcePath.startsWith(target)) {
-                    "Le dossier de préparation doit être distinct des sources de distribution"
+                    tr("Le dossier de préparation doit être distinct des sources de distribution")
                 }
                 windows.checkTree(sourcePath)
                 Files.walk(sourcePath).use { stream -> stream.forEach { file ->

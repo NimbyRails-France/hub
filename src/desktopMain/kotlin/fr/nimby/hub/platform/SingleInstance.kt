@@ -1,5 +1,7 @@
 package fr.nimby.hub.platform
 
+import fr.nimby.hub.i18n.tr
+
 import fr.nimby.hub.storage.atomicWrite
 import java.net.*
 import java.nio.channels.FileChannel
@@ -21,7 +23,7 @@ class SingleInstance(private val directory: Path) : AutoCloseable {
         val qtLock = directory.resolve("hub.lock")
         if (qtLock.exists()) {
             val pid = qtLock.readLines().firstOrNull()?.toLongOrNull()
-            require(pid == null || ProcessHandle.of(pid).map { it.isAlive }.orElse(false).not()) { "Quittez d'abord l'ancien Hub depuis sa zone de notification." }
+            require(pid == null || ProcessHandle.of(pid).map { it.isAlive }.orElse(false).not()) { tr("Quittez d'abord l'ancien Hub depuis sa zone de notification.") }
         }
         val token = UUID.randomUUID().toString()
         val socket = ServerSocket(0, 8, InetAddress.getLoopbackAddress())

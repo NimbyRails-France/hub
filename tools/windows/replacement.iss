@@ -33,7 +33,7 @@ begin
   if FindFirst(Path, Item) then begin
     try
       if (Item.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) <> 0 then
-        RaiseException('Dossier ou fichier lie interdit : ' + Path);
+        RaiseException(FmtMessage(CustomMessage('LinkedPath'), [Path]));
     finally FindClose(Item); end;
   end;
 end;
@@ -70,7 +70,7 @@ end;
 procedure MoveEntry(const Source, Destination: String);
 begin
   if not RenameFile(Source, Destination) then
-    RaiseException('Impossible de deplacer ' + Source + '. Fermez le Hub et recommencez.');
+    RaiseException(FmtMessage(CustomMessage('MoveFailed'), [Source]));
   Note('Moved ' + Source + ' -> ' + Destination);
 end;
 
@@ -79,7 +79,7 @@ begin
   // Never erase a path supplied by a journal: use the checked fixed sibling.
   CheckTree(BackupRoot);
   if not DelTree(BackupRoot, True, True, True) then
-    RaiseException('Sauvegarde conservee, nettoyage impossible : ' + BackupRoot);
+    RaiseException(FmtMessage(CustomMessage('CleanupFailed'), [BackupRoot]));
 end;
 
 procedure RestoreBackup;
@@ -89,7 +89,7 @@ begin
   CheckTree(BackupRoot);
   Phase := GetIniString('transaction', 'phase', '', BackupRoot + '\transaction.ini');
   if (Phase <> 'snapshot') and (Phase <> 'ready') then
-    RaiseException('Etat de restauration inconnu : ' + BackupRoot);
+    RaiseException(FmtMessage(CustomMessage('RecoveryState'), [BackupRoot]));
   ForceDirectories(ProgramRoot);
   if Phase = 'ready' then begin
     // Quarantine partial new files. A snapshot-phase restore only puts back
@@ -101,7 +101,7 @@ begin
         MoveEntry(ProgramRoot + '\' + Items[I], BackupRoot + '\failed\' + Items[I]);
     finally Items.Free; end;
     if not SetIniString('transaction', 'phase', 'snapshot', BackupRoot + '\transaction.ini') then
-      RaiseException('Journal de restauration inaccessible');
+      RaiseException(CustomMessage('RecoveryLog'));
   end;
   Items := Entries(BackupRoot + '\payload', False);
   try
@@ -117,11 +117,11 @@ var Ancestor, Parent, Registered, DataRoot: String; Items: TStringList; Known: B
 begin
   ProgramRoot := RemoveBackslashUnlessRoot(ExpandFileName(ExpandConstant('{app}')));
   BackupRoot := ProgramRoot + '.nrf-rollback';
-  if Length(ProgramRoot) < 10 then RaiseException('Dossier installation trop general');
+  if Length(ProgramRoot) < 10 then RaiseException(CustomMessage('BroadDirectory'));
   DataRoot := Lowercase(ExpandConstant('{localappdata}\NimbyRailsFrance'));
   if (Pos(Lowercase(ProgramRoot) + '\', DataRoot + '\') = 1) or
      (Pos(DataRoot + '\', Lowercase(ProgramRoot) + '\') = 1) then
-    RaiseException('Le dossier programme doit etre separe des donnees utilisateur');
+    RaiseException(CustomMessage('SeparateData'));
   Ancestor := ProgramRoot;
   while Length(Ancestor) > 3 do begin
     NoLinks(Ancestor);
@@ -138,11 +138,11 @@ begin
   Items := Entries(ProgramRoot, False);
   try
     if (Items.Count > 0) and not Known then
-      RaiseException('Ce dossier non vide ne correspond pas a une installation NRF Hub reconnue.');
+      RaiseException(CustomMessage('UnknownDirectory'));
   finally Items.Free; end;
   if DirExists(BackupRoot) then
     if CompareText(GetIniString('transaction', 'target', '', BackupRoot + '\transaction.ini'), ProgramRoot) <> 0 then
-      RaiseException('Sauvegarde sans journal valide : ' + BackupRoot);
+      RaiseException(FmtMessage(CustomMessage('BackupLog'), [BackupRoot]));
 end;
 
 procedure BeginReplacement;
@@ -154,11 +154,11 @@ begin
       DeleteBackup
     else RestoreBackup;
   end;
-  if not ForceDirectories(BackupRoot + '\payload') then RaiseException('Sauvegarde impossible');
+  if not ForceDirectories(BackupRoot + '\payload') then RaiseException(CustomMessage('BackupFailed'));
   Journal := BackupRoot + '\transaction.ini';
   if not SetIniString('transaction', 'target', ProgramRoot, Journal) or
      not SetIniString('transaction', 'phase', 'snapshot', Journal) then
-    RaiseException('Journal de transaction inaccessible');
+    RaiseException(CustomMessage('TransactionLog'));
   ReplacementStarted := True;
   Items := Entries(ProgramRoot, True);
   try
@@ -166,7 +166,7 @@ begin
       MoveEntry(ProgramRoot + '\' + Items[I], BackupRoot + '\payload\' + Items[I]);
   finally Items.Free; end;
   if not SetIniString('transaction', 'phase', 'ready', Journal) then
-    RaiseException('Journal de transaction inaccessible');
+    RaiseException(CustomMessage('TransactionLog'));
   Note('Clean program destination ready: ' + ProgramRoot);
 end;
 
@@ -190,10 +190,10 @@ begin
     if not FileExists(ProgramRoot + '\NRFHub.exe') or
        not FileExists(ProgramRoot + '\app\NRFHub.cfg') or
        not FileExists(ProgramRoot + '\runtime\bin\server\jvm.dll') then
-      RaiseException('Installation incomplete : composants principaux absents');
+      RaiseException(CustomMessage('MissingComponents'));
     if not SetIniString('hub', 'product', 'NRFHub', ProgramRoot + '\.nrfhub-install.ini') or
        not SetIniString('transaction', 'phase', 'committed', BackupRoot + '\transaction.ini') then
-      RaiseException('Validation de installation impossible');
+      RaiseException(CustomMessage('CommitFailed'));
     ReplacementCommitted := True;
     Note('Replacement committed; user profile preserved: ' + ProgramRoot);
   end;

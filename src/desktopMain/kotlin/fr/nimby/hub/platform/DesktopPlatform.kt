@@ -1,5 +1,7 @@
 package fr.nimby.hub.platform
 
+import fr.nimby.hub.i18n.tr
+
 import java.nio.file.Path
 import kotlin.io.path.*
 import fr.nimby.hub.storage.sha256
@@ -27,7 +29,7 @@ object Host {
     val windows = System.getProperty("os.name").startsWith("Windows")
     val linux = System.getProperty("os.name").startsWith("Linux")
     val mac = System.getProperty("os.name").startsWith("Mac")
-    val architecture = when (System.getProperty("os.arch").lowercase()) { "amd64", "x86_64" -> "x64"; "aarch64", "arm64" -> "arm64"; else -> error("Architecture non prise en charge") }
+    val architecture = when (System.getProperty("os.arch").lowercase()) { "amd64", "x86_64" -> "x64"; "aarch64", "arm64" -> "arm64"; else -> error(tr("Architecture non prise en charge")) }
     val id get() = "${if (windows) "windows" else if (mac) "macos" else "linux"}-$architecture"
     val gameName get() = if (windows) "NIMBYRails.exe" else "nimbyrails"
     val tcoName get() = if (windows) "NimbyTco.exe" else "bin/NimbyTco"

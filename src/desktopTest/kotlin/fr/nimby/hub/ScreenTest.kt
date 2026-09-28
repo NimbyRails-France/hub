@@ -12,7 +12,25 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class ScreenTest {
+    @org.junit.Before fun french() { fr.nimby.hub.i18n.I18n.configure("fr", "fr") }
+    @org.junit.After fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
     @get:Rule val compose = createComposeRule()
+
+    @Test fun languageMenuUpdatesTheCurrentPageWithoutChangingDirectories() {
+        var settings by mutableStateOf(HubSettings(root = "C:/Étoile {0}"))
+        compose.setContent { HubScreen(HubState(settings), HubActions(language = {
+            settings = settings.copy(language = it); fr.nimby.hub.i18n.I18n.choose(it)
+        })) }
+        compose.onNodeWithText("Paramètres").performClick()
+        compose.onNodeWithText("Français").performClick()
+        compose.onNodeWithText("English").performClick()
+        compose.onNodeWithText("Language").assertIsDisplayed()
+        compose.onNodeWithText("Installation and preferences").assertIsDisplayed()
+        compose.onNodeWithText("Game directory").performScrollTo().assertIsDisplayed()
+        org.junit.Assert.assertEquals("C:/Étoile {0}", settings.root)
+        org.junit.Assert.assertEquals("en", settings.language)
+        capture("settings-english")
+    }
 
     @Test fun localModShowsBuiltSelectedAndActiveSdkSeparately() {
         val mod = Project("signals", "native-mod", "1.0.0", "Signaux")
