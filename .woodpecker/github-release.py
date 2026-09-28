@@ -13,7 +13,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-PROJECTS = {'sdk', 'hub', 'tco', 'signalisationfrancaiserealiste', 'signal-placement', 'time-change'}
+# Keep the player-facing product names used by the existing GitHub releases.
+PROJECT_NAMES = {
+    'sdk': 'NimbyRails France SDK',
+    'hub': 'NimbyRails France Hub',
+    'tco': 'Nimby TCO',
+    'signalisationfrancaiserealiste': 'Signalisation française réaliste',
+    'signal-placement': 'Signal Placement',
+    'time-change': 'Time Change',
+}
+PROJECTS = set(PROJECT_NAMES)
 VERSION = re.compile(r'(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})(?:-(?:alpha|beta)\.[1-9][0-9]{0,8})?')
 NAME = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,180}')
 
@@ -167,7 +176,7 @@ def publish(plan, source, api, commit):
     source = Path(source)
     names = validate_inputs(plan, source, api.repository, commit)
     tag = 'v' + plan['version']
-    title = f"NimbyRails France Hub {plan['version']}" if api.repository == 'NimbyRails-France/hub' else tag
+    title = f"{PROJECT_NAMES[api.repository.split('/')[-1]]} {plan['version']}"
     release = find_release(api, tag)
     if release is None:
         release = api.request('POST', '/releases', dict(tag_name=tag, target_commitish=commit, name=title,
