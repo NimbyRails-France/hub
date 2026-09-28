@@ -1,6 +1,6 @@
 # NimbyRails France Hub
 
-Hub **0.4.1-alpha.4** en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
+Hub en Kotlin Multiplatform et Compose : catalogue, SDK, TCO et mods
 NimbyRails-France. Le projet s'ouvre dans IntelliJ IDEA et se compile avec Gradle.
 
 L'interface propose français et anglais dans **Paramètres > Langue**. Le mode
@@ -73,6 +73,23 @@ réglages globaux du jeu restent partagés : utiliser une copie de partie pour
 les essais. Les anciens paquets de développement sont conservés sur disque.
 
 ## Installer des projets
+
+Au premier lancement, le Hub recherche le dossier Steam habituel. Si le jeu
+n'est pas trouvé, un guide propose **Choisir le dossier du jeu**. Dans Steam,
+utiliser **NIMBY Rails > Gérer > Parcourir les fichiers locaux**, puis sélectionner
+ce dossier dans le Hub. Le chemin est mémorisé. **Vérifier à nouveau** permet de
+relancer la lecture après avoir corrigé le dossier ou ses permissions.
+
+Les installations restent désactivées tant que le jeu n'est pas identifié.
+Un dossier absent ou illisible demande de choisir le bon emplacement ; une
+version identifiée mais incompatible affiche **Version du jeu non prise en charge**.
+Le journal enregistre le chemin et l'empreinte du jeu pour faciliter le diagnostic.
+
+On first launch, the Hub checks the usual Steam location. If the game cannot
+be found, choose **Choose game folder**. In Steam, use **NIMBY Rails > Manage >
+Browse local files** to find it. The folder is saved, and **Check again** retries
+verification after fixing the location or permissions. Installation stays disabled
+until the game is identified and compatible with the selected package.
 
 Choisir le dossier de `NIMBYRails.exe`, puis installer le SDK avant les mods/TCO.
 Le Hub demande le dossier parent de chaque nouveau projet. Fermer le jeu, le TCO
