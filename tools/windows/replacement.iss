@@ -6,6 +6,8 @@ var
   ProgramRoot, BackupRoot: String;
   ReplacementStarted, ReplacementCommitted: Boolean;
 
+#include "diagnostics.iss"
+
 function IsControlFile(const Name: String): Boolean;
 var N, Ext: String; I: Integer;
 begin
@@ -24,7 +26,7 @@ begin
   Folder := ExpandConstant('{localappdata}\NimbyRailsFrance\logs\hub');
   if ForceDirectories(Folder) then
     SaveStringToFile(Folder + '\installer-migration.log',
-      GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + ' ' + Message + #13#10, True);
+      Utf8Encode(GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + ' ' + Message + #13#10), True);
 end;
 
 procedure NoLinks(const Path: String);
@@ -146,8 +148,12 @@ begin
 end;
 
 procedure BeginReplacement;
-var Items: TStringList; I: Integer; Journal: String;
+var Items: TStringList; I: Integer; Journal: String; FreeMB, TotalMB: Cardinal;
 begin
+  InstallerCheckpoint('validating destination');
+  Note('Installer version={#Version}; target=' + ExpandConstant('{app}'));
+  if GetSpaceOnDisk(ExpandConstant('{app}'), True, FreeMB, TotalMB) then
+    Note('Target disk free MB=' + IntToStr(FreeMB) + '; total MB=' + IntToStr(TotalMB));
   ValidateDestination;
   if DirExists(BackupRoot) then begin
     if GetIniString('transaction', 'phase', '', BackupRoot + '\transaction.ini') = 'committed' then
@@ -160,6 +166,7 @@ begin
      not SetIniString('transaction', 'phase', 'snapshot', Journal) then
     RaiseException(CustomMessage('TransactionLog'));
   ReplacementStarted := True;
+  InstallerCheckpoint('backing up previous installation');
   Items := Entries(ProgramRoot, True);
   try
     for I := 0 to Items.Count - 1 do
@@ -168,9 +175,11 @@ begin
   if not SetIniString('transaction', 'phase', 'ready', Journal) then
     RaiseException(CustomMessage('TransactionLog'));
   Note('Clean program destination ready: ' + ProgramRoot);
+  InstallerCheckpoint('copying program files');
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var LauncherPresent, ConfigPresent, RuntimePresent: Boolean;
 begin
   if CurStep = ssInstall then begin
     // ssInstall is after Inno's running-application handling, before copying.
@@ -187,15 +196,23 @@ begin
     end;
   end;
   if CurStep = ssPostInstall then begin
-    if not FileExists(ProgramRoot + '\NRFHub.exe') or
-       not FileExists(ProgramRoot + '\app\NRFHub.cfg') or
-       not FileExists(ProgramRoot + '\runtime\bin\server\jvm.dll') then
+    InstallerCheckpoint('checking installed components');
+    LauncherPresent := LogInstalledComponent('NRFHub.exe');
+    ConfigPresent := LogInstalledComponent('app\NRFHub.cfg');
+    RuntimePresent := LogInstalledComponent('runtime\bin\server\jvm.dll');
+    if not LauncherPresent or not ConfigPresent or not RuntimePresent then begin
+      Note(CustomMessage('MissingComponents'));
+      SnapshotInstallerLog;
       RaiseException(CustomMessage('MissingComponents'));
+    end;
     if not SetIniString('hub', 'product', 'NRFHub', ProgramRoot + '\.nrfhub-install.ini') or
-       not SetIniString('transaction', 'phase', 'committed', BackupRoot + '\transaction.ini') then
+       not SetIniString('transaction', 'phase', 'committed', BackupRoot + '\transaction.ini') then begin
+      Note(CustomMessage('CommitFailed'));
       RaiseException(CustomMessage('CommitFailed'));
+    end;
     ReplacementCommitted := True;
     Note('Replacement committed; user profile preserved: ' + ProgramRoot);
+    InstallerCheckpoint('committed');
   end;
   if (CurStep = ssDone) and ReplacementCommitted then begin
     try DeleteBackup;
@@ -205,8 +222,14 @@ end;
 
 procedure DeinitializeSetup;
 begin
+  Note('Setup ending; version={#Version}; last stage=' + InstallerStage);
+  SnapshotInstallerLog;
   if ReplacementStarted and not ReplacementCommitted then begin
+    Note('Installation not committed; restoring previous files. Detailed error log: ' + InstallerLogPath);
     try RestoreBackup;
     except Note('Restore incomplete; next installer will resume: ' + GetExceptionMessage); end;
   end;
+  if ReplacementCommitted then Log('NRF diagnostics: outcome=committed')
+  else Log('NRF diagnostics: outcome=not committed (failure or cancellation)');
+  SnapshotInstallerLog;
 end;

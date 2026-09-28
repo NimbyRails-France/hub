@@ -18,8 +18,26 @@ cette récupération. Après réussite, la sauvegarde est supprimée. Les fichie
 
 Le nettoyage refuse les liens/jonctions et les dossiers non vides qui ne sont
 pas identifiés comme une installation du Hub. Les migrations sont consignées
-dans `logs\hub\installer-migration.log`, avec un journal Inno complet dans le
-dossier temporaire Windows (ou à l'emplacement fourni avec `/LOG=...`).
+dans `%LOCALAPPDATA%\NimbyRailsFrance\logs\hub\installer-migration.log`.
+L'installateur conserve aussi le journal Inno dans ce même dossier :
+
+- `installer-latest.log` : dernière tentative, à transmettre en cas d'échec ;
+- `installer-VERSION-DATE-HEURE.log` : historique séparé de chaque tentative.
+
+Ces copies contiennent les messages Inno, la version de l'installateur, Windows,
+les chemins, l'espace disponible lorsqu'il est lisible, la progression, la
+présence des composants et l'issue de la restauration. Elles sont actualisées
+aux étapes principales puis juste avant la fermeture, y compris après un échec
+ou une annulation. Les dernières lignes ajoutées par Inno après ce callback
+restent dans le journal original de `%TEMP%` (ou du chemin `/LOG=...`), indiqué
+dans chaque copie. Si l'installateur est tué brutalement, la dernière copie peut
+être incomplète : récupérer aussi ce journal original.
+
+In case of failure, send `%LOCALAPPDATA%\NimbyRailsFrance\logs\hub\installer-latest.log`.
+Each attempt also keeps a separate timestamped log, including installation errors
+and rollback diagnostics. The original Inno log path is recorded inside it.
+
+Référence : [journal Inno et constante `{log}`](https://jrsoftware.org/ishelp/topic_consts.htm).
 
 Woodpecker exécute le véritable installateur Windows sous Wine : installation
 neuve, anciens fichiers Qt et inconnus, réinstallation, dossiers manquants,

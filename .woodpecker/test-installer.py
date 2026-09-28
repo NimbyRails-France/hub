@@ -1,4 +1,4 @@
-"""Exercise the real Windows installer on the VPS, never on a developer PC.
+"""Exercise the real Windows installer in disposable CI, never on a developer PC.
 
 This gates publishing after packaging. Check bytes, not just exit codes: stale
 libraries must vanish, missing directories must be recreated, and the external
@@ -79,6 +79,8 @@ def assert_profile():
 
 
 def install(name, target=TARGET, installer=INSTALLER, success=True):
+    logs = DATA / 'logs/hub'
+    previous_logs = set(logs.glob(f'installer-{VERSION}-*.log'))
     result = wine(win(installer), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                   '/DIR=' + win(target), '/LOG=' + win(REPORTS / (name + '.log')), check=False)
     if success:
@@ -95,6 +97,24 @@ def install(name, target=TARGET, installer=INSTALLER, success=True):
         assert not BACKUP.exists(), 'Successful replacement left a rollback directory'
     else:
         assert result.returncode != 0, (name, 'Unsafe/incomplete install accepted')
+    attempts = set(logs.glob(f'installer-{VERSION}-*.log')) - previous_logs
+    assert len(attempts) == 1, (name, 'One persistent Inno log is required per attempt', attempts)
+    attempt = attempts.pop()
+    latest = logs / 'installer-latest.log'
+    assert latest.read_bytes() == attempt.read_bytes(), (name, 'Latest log does not match this attempt')
+    diagnostic = latest.read_text(encoding='utf-8-sig')
+    assert f'Hub installer version={VERSION}' in diagnostic
+    assert 'NRF diagnostics: Windows=' in diagnostic
+    assert 'NRF diagnostics: original Inno log=' in diagnostic
+    assert ('NRF diagnostics: outcome=committed' if success else 'NRF diagnostics: outcome=not committed') in diagnostic
+    if success:
+        assert 'NRF diagnostics: component=' in diagnostic and 'NRFHub.exe' in diagnostic
+    if name == 'failure-restores-previous':
+        assert 'Injected CI failure after snapshot' in diagnostic
+        assert 'Previous program restored' in diagnostic
+    if name == 'missing-component-restores-previous':
+        assert 'NRF diagnostics: MISSING component=' in diagnostic and r'app\NRFHub.cfg' in diagnostic
+        assert 'Previous program restored' in diagnostic
     assert_profile()
     print('PASS installer:', name, flush=True)
 
@@ -118,6 +138,21 @@ before = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.
 install('failure-restores-previous', installer=fault / INSTALLER.name, success=False)
 after = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
 assert before == after, 'Failed replacement did not restore the previous installation'
+assert not BACKUP.exists()
+
+# A real incomplete payload must preserve the exact missing component in the
+# persistent Inno log and restore the old installation, not report success.
+missing_stage = REPORTS / 'missing-component-stage'
+shutil.copytree(STAGE, missing_stage)
+(missing_stage / 'app/NRFHub.cfg').unlink()
+missing_output = REPORTS / 'missing-component-installer'
+missing_output.mkdir()
+wine('/opt/inno/ISCC.exe', '/Qp', '/DStage=' + win(missing_stage), '/DOutput=' + win(missing_output),
+     '/DVersion=' + VERSION, '/DNativeVersion=' + VERSION.split('-')[0], win(ROOT / 'tools/windows/installer.iss'))
+before = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
+install('missing-component-restores-previous', installer=missing_output / INSTALLER.name, success=False)
+after = {str(p.relative_to(TARGET)): digest(p) for p in TARGET.rglob('*') if p.is_file()}
+assert before == after, 'Missing-component rollback did not restore the previous installation'
 assert not BACKUP.exists()
 
 shutil.rmtree(TARGET / 'runtime')
