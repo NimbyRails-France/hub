@@ -4,7 +4,7 @@ import fr.nimby.hub.i18n.tr
 
 import fr.nimby.hub.model.*
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.*
 import java.nio.file.*
 import java.security.MessageDigest
 import kotlin.io.path.*
@@ -50,8 +50,17 @@ class SettingsStore(val directory: Path) {
             sdk = directory.resolve("sdk").toString(), development = directory.resolve("development").toString()))
         // A broken profile must never silently overwrite the installed-project records.
         val text = file.jsonText()
-        val legacy = "schema" !in hubJson.parseToJsonElement(text).jsonObject
-        val decoded = hubJson.decodeFromString<HubSettings>(text)
+        val document = hubJson.parseToJsonElement(text).jsonObject
+        val legacy = "schema" !in document
+        // The Qt Hub kept an explicit null for each uninstalled project. The
+        // Kotlin model represents the same state by an absent map entry. Only
+        // those placeholders are removed; malformed non-null records still fail
+        // validation, and optional fields inside installed records stay intact.
+        val installed = document["installed"] as? JsonObject
+        val normalized = if (installed != null && installed.values.any { it == JsonNull })
+            JsonObject(document + ("installed" to JsonObject(installed.filterValues { it != JsonNull })))
+        else document
+        val decoded = hubJson.decodeFromJsonElement<HubSettings>(normalized)
         val settings = decoded.copy(paths = decoded.paths.copy(development = decoded.paths.development.ifBlank { directory.resolve("development").toString() }),
             legacyProtection = decoded.legacyProtection || (legacy && decoded.developerMode))
         listOf(settings.installed, settings.activeDevelopment, settings.development.prepared).forEach { records -> records.forEach { (id, record) ->
@@ -66,7 +75,8 @@ class SettingsStore(val directory: Path) {
         }
         require(settings.development.origins.keys.all(ProjectRules.identifier::matches)) { tr("Sélection locale invalide") }
         require(settings.schema == 2) { tr("Format de réglages non pris en charge") }
-        if (legacy && !directory.resolve("settings.before-profiles.json").exists()) directory.resolve("settings.before-profiles.json").atomicWrite(text)
+        if ((legacy || normalized !== document) && !directory.resolve("settings.before-profiles.json").exists())
+            directory.resolve("settings.before-profiles.json").atomicWrite(text)
         return settings
     }
     fun write(settings: HubSettings) = file.atomicWrite(hubJson.encodeToString(settings))

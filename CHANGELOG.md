@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.6] - 2026-09-28
+
+- Corrige le blocage au démarrage après une mise à jour depuis l'ancien Hub lorsque certains mods ne sont pas installés.
+- Conserve les réglages, les canaux choisis et les mods installés ; une copie du profil d'origine est gardée lors de sa conversion.
+
+Fixes startup when upgrading an older Hub profile containing uninstalled projects, while preserving settings and installed mods.
+
 ## [0.4.1-alpha.5] - 2026-09-28
 
 - Le Hub et son installateur sont disponibles en français et en anglais, avec un choix de langue dans les réglages.
