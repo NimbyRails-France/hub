@@ -23,6 +23,7 @@ class HubController(
     private val notify: (String, String) -> Unit = { _, _ -> },
     private val journal: HubLog = HubLog(DiagnosticPaths.hub()),
     private val windows: DesktopPlatform = desktopPlatform { journal.append(it) },
+    selfUpdater: SelfUpdater? = null,
 ) {
     private val source: ReleaseSource = source ?: ResilientReleases(report = { journal.append(it) })
     val logDirectory: Path get() = journal.directory
@@ -54,7 +55,7 @@ class HubController(
     private var gameMonitor: Job? = null
     private var operation: Job? = null
     private var gameCheckGeneration = 0L
-    private val updater = SelfUpdater(store.directory, this.source)
+    private val updater = selfUpdater ?: SelfUpdater(store.directory, this.source)
 
     private fun update(transform: (HubState) -> HubState) { mutable.update(transform) }
     private fun log(text: String, failure: Throwable? = null) = log(UiText(text, literal = true), failure)
@@ -241,7 +242,7 @@ class HubController(
                 identifyGame()
                 log(message("Releases vérifiées · {0} projets · {1} indisponibles", catalogue.projects.size, catalogue.errors.size))
                 notifyUpdates()
-                try { updater.check(state.value.settings.selectedChannel("hub")) { policy.accepts(ticket) && policy.canAutoInstall } }
+                try { updater.check(state.value.settings.selectedChannel("hub")) { policy.accepts(ticket) && policy.canUpdateHub } }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) { log(message("Mise à jour du Hub : {0}", failure.message), failure) }
                 if (updater.version != null && state.value.readyHubVersion == null) notify(tr("Mise à jour du Hub prête"), tr("Vous pouvez redémarrer le Hub pour appliquer la version {0}.", updater.version))
@@ -350,7 +351,7 @@ class HubController(
     fun quit(relaunch: Boolean = false): Boolean {
         if (state.value.installing || operation?.isActive == true) { log(message("Attendez la fin de l'opération avant de quitter.")); return false }
         stopNetwork()
-        try { updater.installOnExit(policy.canAutoInstall, relaunch) }
+        try { updater.installOnExit(policy.canUpdateHub, relaunch) }
         catch (failure: Exception) { log(message("Mise à jour du Hub impossible : {0}", failure.message), failure); return false }
         return true
     }

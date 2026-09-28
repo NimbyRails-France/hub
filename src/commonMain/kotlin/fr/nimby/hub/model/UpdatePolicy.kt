@@ -9,6 +9,8 @@ class UpdatePolicy(developerMode: Boolean = false, automatic: Boolean = true) {
     var generation: Long = 0
         private set
     val canSynchronize get() = true
+    // Updating the Hub does not replace the SDK or mods selected for development.
+    val canUpdateHub get() = automatic
     val canAutoInstall get() = !developerMode && automatic
     fun change(developerMode: Boolean = this.developerMode, automatic: Boolean = this.automatic) {
         if (this.developerMode != developerMode || this.automatic != automatic) generation++

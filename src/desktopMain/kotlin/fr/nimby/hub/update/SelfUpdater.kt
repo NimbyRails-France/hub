@@ -10,10 +10,15 @@ import java.nio.file.Path
 import java.util.UUID
 import kotlin.io.path.*
 
-class SelfUpdater(private val directory: Path, private val source: ReleaseSource) {
+class SelfUpdater(
+    private val directory: Path,
+    private val source: ReleaseSource,
+    private val executable: () -> Path? = { ProcessHandle.current().info().command().orElse(null)?.let(::Path) },
+    private val launchInstaller: (List<String>) -> Unit = { ProcessBuilder(it).start(); Unit },
+) {
     private var ready: Pair<HubRelease, Path>? = null
     val version get() = ready?.first?.version
-    private val installedExecutable: Path? get() = ProcessHandle.current().info().command().orElse(null)?.let(::Path)
+    private val installedExecutable: Path? get() = executable()
         ?.takeIf { it.fileName.toString().equals(if (Host.windows) "NRFHub.exe" else "NRFHub", true) }
 
     fun discard() { ready?.second?.deleteIfExists(); ready = null }
@@ -37,15 +42,15 @@ class SelfUpdater(private val directory: Path, private val source: ReleaseSource
         if (!Host.windows) {
             // Native package managers own elevation and replacement of installed files.
             // Opening the verified installer lets the desktop ask for any required credentials.
-            ProcessBuilder(if (Host.mac) "open" else "xdg-open", path.toString()).start()
+            launchInstaller(listOf(if (Host.mac) "open" else "xdg-open", path.toString()))
             return
         }
         if (release.installer == "jpackage-exe") {
-            ProcessBuilder(path.toString()).start()
+            launchInstaller(listOf(path.toString()))
             return
         }
         val command = mutableListOf(path.toString(), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=${executable.parent}")
         if (relaunch) command += "/RELAUNCH"
-        ProcessBuilder(command).start()
+        launchInstaller(command)
     }
 }

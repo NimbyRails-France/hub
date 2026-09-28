@@ -1,5 +1,10 @@
 # Installation et réparation Windows
 
+La mise à jour automatique du Hub fonctionne dans les profils Jouer et
+Développer, même lorsque les outils développeur sont activés. Elle respecte
+le réglage général des mises à jour automatiques. Les protections du SDK et
+des mods en développement restent indépendantes de la mise à jour du Hub.
+
 L'installateur utilise la même procédure pour une installation neuve, une mise
 à jour et une réinstallation de la même version. Il reconstruit les fichiers
 du programme même si le lanceur, la JVM ou des dossiers ont été supprimés.

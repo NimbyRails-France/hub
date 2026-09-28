@@ -23,6 +23,7 @@ class PolicyTest {
         assertTrue(policy.accepts(before))
         policy.change(developerMode = true)
         assertTrue(policy.canSynchronize)
+        assertTrue(policy.canUpdateHub)
         assertFalse(policy.canAutoInstall)
         assertFalse(policy.accepts(before))
         policy.change(developerMode = false)
@@ -30,6 +31,7 @@ class PolicyTest {
         assertFalse(policy.accepts(before), "A stale download must remain invalid after an on/off cycle")
         policy.change(automatic = false)
         assertTrue(policy.canSynchronize)
+        assertFalse(policy.canUpdateHub)
         assertFalse(policy.canAutoInstall)
     }
     @Test fun nativeLibraryMustMatchPackagePlatform() {

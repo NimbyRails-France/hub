@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.1-alpha.10] - 2026-09-28
+
+- Corrige la mise à jour du Hub en mode développeur, dans les profils Jouer et Développer.
+- Le Hub peut télécharger puis appliquer son installateur à la fermeture, sans activer les mises à jour automatiques du SDK ou des mods de développement.
+- Le réglage général des mises à jour automatiques reste respecté.
+
+Hub self-updates now work in both Play and Develop profiles with developer tools enabled, while automatic SDK and mod updates remain protected.
+
 ## [0.4.1-alpha.9] - 2026-09-28
 
 - Corrige le blocage de l'installation du SDK d? ? l'ancienne DLL pthread reconnue ; aucune suppression manuelle n?cessaire avec le SDK 0.8.0-alpha.4.
