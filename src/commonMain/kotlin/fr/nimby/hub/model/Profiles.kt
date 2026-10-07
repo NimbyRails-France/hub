@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable enum class ModOrigin { PUBLISHED, LOCAL }
 enum class HubPage(private val sourceLabel: String, val kind: String?) {
     MODS("Mods", "native-mod"), TOOLS("Utilitaires", "tco"), SDK("SDK", "sdk"),
-    ACTIVITY("Téléchargements", null), SETTINGS("Paramètres", null);
+    ACTIVITY("Journaux", null), SETTINGS("Paramètres", null);
     val label get() = tr(sourceLabel)
 }
 enum class PathSetting(private val sourceLabel: String, val development: Boolean = false, val file: Boolean = false) {

@@ -5,12 +5,10 @@ import fr.nimby.hub.i18n.tr
 import fr.nimby.hub.model.*
 import fr.nimby.hub.storage.*
 import fr.nimby.hub.platform.Host
-import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import java.nio.file.*
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 import kotlin.io.path.*
 
 /** An optional descriptor declares outputs; the Hub never searches for an arbitrary DLL. */
@@ -31,7 +29,8 @@ object LocalProjects {
         return Project(id = field("id"), name = field("name"), kind = "native-mod", version = version,
             modId = modId, module = "$module.${Host.moduleExtension}", loaderApi = 1, rootFolder = "$modId-$version",
             platform = Host.id, url = "$modId-$version-${Host.id}.zip", sdkMin = field("sdkMin"), sdkMaxExclusive = field("sdkMaxExclusive"),
-            gameSha256 = mod["gameSha256"]?.jsonArray?.map { it.jsonPrimitive.content } ?: error(tr("mod.json : gameSha256 requis")))
+            gameSha256 = mod["gameSha256"]?.jsonArray?.map { it.jsonPrimitive.content } ?: error(tr("mod.json : gameSha256 requis")),
+            developmentStatus = mod["developmentStatus"]?.jsonPrimitive?.contentOrNull)
     }
 
     fun inside(root: Path, relative: String): Path {
@@ -55,9 +54,12 @@ object LocalProjects {
                 require(inside(root, it).isRegularFile()) { tr("Projet SDK incomplet : {0}", it) }
             }
             val version = root.resolve("VERSION").readText().trim()
+            val releaseMetadata = root.resolve("release-channels.json").takeIf { it.isRegularFile() }
+                ?.let { hubJson.parseToJsonElement(it.jsonText()).jsonObject }
             val project = Project("sdk", "sdk", version, "NimbyRailsFranceSDK + NRF Loader",
                 rootFolder = "NimbyRailsFranceSDK-$version", gameSha256 = descriptor.gameSha256,
-                loaderApi = 1, channel = Versions.channel(version))
+                loaderApi = 1, channel = Versions.channel(version),
+                developmentStatus = releaseMetadata?.get("developmentStatus")?.jsonPrimitive?.contentOrNull)
             ProjectRules.validate(project, remote = false, requireArtifact = false)
             return LocalProject(project, root.toString(), descriptorPath.toString(), "buildSdk", builder = "windows-sdk")
         }
@@ -76,7 +78,10 @@ object LocalProjects {
             project = template.copy(version = version, rootFolder = template.rootFolder.replace(template.version, version),
                 module = mod["module"]?.jsonPrimitive?.content?.let { "$it.${Host.moduleExtension}" } ?: template.module,
                 sdkMin = mod["sdkMin"]?.jsonPrimitive?.content ?: template.sdkMin,
-                sdkMaxExclusive = mod["sdkMaxExclusive"]?.jsonPrimitive?.content ?: template.sdkMaxExclusive)
+                sdkMaxExclusive = mod["sdkMaxExclusive"]?.jsonPrimitive?.content ?: template.sdkMaxExclusive,
+                // Source metadata is authoritative, including removal of an optional status.
+                // Do not keep a stale published badge when mod.json omits this field.
+                developmentStatus = mod["developmentStatus"]?.jsonPrimitive?.contentOrNull)
         }
         ProjectRules.validate(project, remote = false, requireArtifact = source == null)
         val gradle = root.resolve("gradle/wrapper/gradle-wrapper.jar").isRegularFile()
@@ -159,25 +164,6 @@ object LocalProjects {
 
     /** Shared logging/cancellation; platform builders provide argument lists, never shell fragments. */
     internal suspend fun run(command: List<String>, root: Path, label: String, output: (String) -> Unit) {
-        val process = withContext(Dispatchers.IO) { ProcessBuilder(command).directory(root.toFile()).redirectErrorStream(true).start() }
-        try {
-            withContext(Dispatchers.IO) {
-                process.inputStream.bufferedReader().use { reader ->
-                    var count = 0
-                    while (true) {
-                        currentCoroutineContext().ensureActive()
-                        val line = runInterruptible { reader.readLine() } ?: break
-                        if (++count <= 100_000) output(line.take(2000))
-                    }
-                }
-                check(runInterruptible { process.waitFor() } == 0) { tr("{0} a échoué. Consultez le journal de compilation.", label) }
-            }
-        } finally {
-            if (process.isAlive) {
-                process.descendants().forEach { it.destroy() }
-                process.destroy()
-                withContext(NonCancellable + Dispatchers.IO) { if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly() }
-            }
-        }
+        check(BuildProcess.run(command, root, output) == 0) { tr("{0} a échoué. Consultez le journal de compilation.", label) }
     }
 }

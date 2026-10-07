@@ -122,6 +122,62 @@ class ReleaseFallbackTest {
         assertEquals(DistributionLocation.githubMirror(installer.url), transport.downloaded)
     }
 
+    @Test fun renamedRepositoriesReadOldAndNewAssetUrlsWithoutChangingInstalledIdentity() = runTest {
+        val renamed = mapOf("signalisationfrancaiserealiste" to "ab-signalisation-lumineuse",
+            "signal-placement" to "ba-signal-placement", "time-change" to "bb-timechange")
+        for ((id, repository) in renamed) for (catalogueRepo in listOf(id, repository)) {
+            val canonical = DistributionLocation.githubDownload(id, "1.0.0", "mod.zip")
+            val old = "https://github.com/NimbyRails-France/$id/releases/download/v1.0.0/mod.zip"
+            for (manifestUrl in listOf(old, canonical, DistributionLocation.page(id, "1.0.0") + "mod.zip")) {
+                val transport = Transport()
+                val base = "https://github.com/NimbyRails-France/$catalogueRepo/releases/download/v1.0.0/"
+                val release = GitHubRelease("v1.0.0", publishedAt = "2026-10-07T12:00:00Z", assets = listOf(
+                    ReleaseAsset("project-windows-x64.json", "uploaded", base + "project-windows-x64.json", 200),
+                    ReleaseAsset("mod.zip", "uploaded", base + "mod.zip", 42, "sha256:$hash")))
+                val project = Project(id, "native-mod", "1.0.0", name = "Renamed mod", rootFolder = "ExistingMod-1.0.0",
+                    modId = "ExistingMod", module = "ExistingMod.dll", loaderApi = 1, platform = "windows-x64",
+                    url = manifestUrl, size = 42, sha256 = hash, gameSha256 = listOf(hash), sdkMin = "0.9.0-alpha.1", sdkMaxExclusive = "0.10.0")
+                transport.texts[DistributionLocation.githubCatalogue(id)] =
+                    """{"schema":1,"project":"$id","releases":${hubJson.encodeToString(listOf(release))}}"""
+                transport.texts[DistributionLocation.githubDownload(id, "1.0.0", "project-windows-x64.json")] = hubJson.encodeToString(project)
+                val result = GitHubReleases(transport, "windows-x64").project(id, "stable")
+                assertEquals(id, result.id)
+                assertEquals(project.modId, result.modId)
+                assertEquals(project.module, result.module)
+                assertEquals(project.rootFolder, result.rootFolder)
+                assertEquals(canonical, result.url)
+                assertEquals(hash, result.sha256)
+                assertEquals(DistributionLocation.githubPage(id, "1.0.0"), result.releaseUrl)
+                assertTrue(transport.requested.all { it.startsWith("https://github.com/NimbyRails-France/$repository/") })
+            }
+        }
+    }
+
+    @Test fun renamedRepositoryApiBootstrapUsesCanonicalSlugAndStableManifestId() = runTest {
+        val transport = Transport()
+        val id = "time-change"
+        val manifestUrl = DistributionLocation.githubDownload(id, "1.0.0", "project-windows-x64.json")
+        val assetUrl = DistributionLocation.githubDownload(id, "1.0.0", "mod.zip")
+        val release = GitHubRelease("v1.0.0", publishedAt = "2026-10-07T12:00:00Z", assets = listOf(
+            ReleaseAsset("project-windows-x64.json", "uploaded", manifestUrl, 200),
+            ReleaseAsset("mod.zip", "uploaded", assetUrl, 42, "sha256:$hash")))
+        val project = Project(id, "native-mod", "1.0.0", rootFolder = "TimeChange-1.0.0", modId = "TimeChange",
+            module = "TimeChangeMod.dll", loaderApi = 1, platform = "windows-x64", url = assetUrl, size = 42,
+            sha256 = hash, gameSha256 = listOf(hash), sdkMin = "0.9.0-alpha.1", sdkMaxExclusive = "0.10.0")
+        val api = "https://api.github.com/repos/NimbyRails-France/bb-timechange/releases?per_page=100&page=1"
+        transport.texts[api] = hubJson.encodeToString(listOf(release))
+        transport.texts[manifestUrl] = hubJson.encodeToString(project)
+        assertEquals(id, GitHubReleases(transport, "windows-x64").project(id, "stable").id)
+        assertTrue(api in transport.requested)
+        assertTrue(transport.requested.none { it.contains("/time-change/") })
+        for (bad in listOf(project.copy(id = "bb-timechange"), project.copy(id = "signal-placement"),
+            project.copy(url = DistributionLocation.githubDownload("signal-placement", "1.0.0", "mod.zip")),
+            project.copy(sha256 = "b".repeat(64)))) {
+            transport.texts[manifestUrl] = hubJson.encodeToString(bad)
+            assertFails { GitHubReleases(transport, "windows-x64").project(id, "stable") }
+        }
+    }
+
     private class Source : ReleaseSource {
         var calls = 0; var failure: Exception? = null
         private fun called() { calls++; failure?.let { throw it } }
@@ -168,5 +224,22 @@ class ReleaseFallbackTest {
         }
         assertFalse(HttpReleaseTransport.allowedInitial("https://api.github.com/repos/Other/sdk/releases?per_page=100&page=1"))
         assertFails { DistributionLocation.githubMirror("https://evil.test/sdk.zip") }
+    }
+
+    @Test fun renamedRepositoryRedirectsStayOnTheSameProjectVersionAndFile() {
+        val legacy = "https://github.com/NimbyRails-France/signal-placement/releases/download/v1.0.0/mod.zip"
+        val canonical = DistributionLocation.githubMirror(legacy)
+        assertTrue(HttpReleaseTransport.allowedRedirect(legacy, URI(canonical)))
+        assertTrue(HttpReleaseTransport.allowedRedirect(canonical, URI(legacy)))
+        for (bad in listOf(DistributionLocation.githubDownload("time-change", "1.0.0", "mod.zip"),
+            canonical.replace("v1.0.0", "v1.0.1"), canonical.replace("mod.zip", "other.zip"),
+            canonical + "?redirect=1", canonical.replace("NimbyRails-France", "OtherOrg"))) {
+            assertFalse(HttpReleaseTransport.allowedRedirect(legacy, URI(bad)), bad)
+        }
+        val oldCatalogue = "https://github.com/NimbyRails-France/signal-placement/releases/download/catalogue/releases.json"
+        assertTrue(HttpReleaseTransport.allowedRedirect(oldCatalogue, URI(DistributionLocation.githubCatalogue("signal-placement"))))
+        assertFalse(HttpReleaseTransport.allowedRedirect(oldCatalogue, URI(DistributionLocation.githubCatalogue("time-change"))))
+        assertFalse(HttpReleaseTransport.allowedRedirect(oldCatalogue, URI(canonical)))
+        assertFalse(HttpReleaseTransport.allowedRedirect(legacy, URI(DistributionLocation.githubCatalogue("signal-placement"))))
     }
 }

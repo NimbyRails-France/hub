@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 val hubJson = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
-const val HUB_VERSION = "0.4.2-alpha.1"
+const val HUB_VERSION = "0.4.2-alpha.2"
 
 @Serializable
 data class Project(
@@ -28,6 +28,9 @@ data class Project(
     val releaseUrl: String = "",
     val changelog: String = "",
     val platform: String = "windows-x64",
+    // Author-provided display metadata, independent from the release channel.
+    // Preserve future values; an unknown status must never block installation.
+    val developmentStatus: String? = null,
 )
 
 @Serializable
@@ -48,10 +51,12 @@ data class InstalledProject(
     val modId: String? = null,
     val origin: String = "unknown",
     val platform: String = "windows-x64",
+    val developmentStatus: String? = null,
 ) {
     fun asProject() = Project(id, kind, version, name, gameSha256 = gameSha256,
         sdkMin = sdkMin, sdkMaxExclusive = sdkMaxExclusive, loaderApi = loaderApi, module = module,
-        modId = modId ?: modLink?.replace('\\', '/')?.substringAfterLast('/'), platform = platform)
+        modId = modId ?: modLink?.replace('\\', '/')?.substringAfterLast('/'), platform = platform,
+        developmentStatus = developmentStatus)
 }
 
 @Serializable

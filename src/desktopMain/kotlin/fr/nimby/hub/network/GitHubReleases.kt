@@ -60,7 +60,7 @@ class GitHubReleases(
             apiRequests++
             val batch = try {
                 hubJson.decodeFromString<List<GitHubRelease>>(transport.text(
-                    "https://api.github.com/repos/NimbyRails-France/$repo/releases?per_page=100&page=$page", 4 * 1024 * 1024))
+                    "https://api.github.com/repos/NimbyRails-France/${DistributionLocation.githubRepository(repo)}/releases?per_page=100&page=$page", 4 * 1024 * 1024))
             } catch (failure: ReleaseHttpException) {
                 if (failure.status in listOf(403, 429)) apiBlockedUntil = time + HOUR
                 if (failure.status == 404) return emptyList()
@@ -86,7 +86,7 @@ class GitHubReleases(
     private suspend fun manifest(repo: String, selected: ReleaseSelection.Selected): JsonObject {
         val url = ReleaseSelection.assetUrl(selected.release, repo, selected.manifest)
         require(DistributionLocation.github(url))
-        return hubJson.parseToJsonElement(transport.text(url, 65536)).jsonObject
+        return hubJson.parseToJsonElement(transport.text(DistributionLocation.githubMirror(url), 65536)).jsonObject
     }
 
     private suspend fun selected(repo: String, channel: String) =

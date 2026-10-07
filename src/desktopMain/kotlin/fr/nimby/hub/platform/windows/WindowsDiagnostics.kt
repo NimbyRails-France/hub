@@ -3,8 +3,6 @@ package fr.nimby.hub.platform.windows
 import fr.nimby.hub.model.*
 import kotlinx.serialization.json.*
 import java.util.Base64
-import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 /** Read-only inventory: file/version metadata, OS and selected game modules.
  * Only a read-only PowerShell helper is launched; no game DLL is loaded or injected. No command line or
@@ -22,21 +20,12 @@ object WindowsDiagnostics {
         }
         return runCatching {
             val script = checkNotNull(javaClass.getResourceAsStream("/windows-diagnostics.ps1")).bufferedReader(Charsets.UTF_8).use { it.readText() }
-            val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-ExecutionPolicy", "Bypass",
-                "-EncodedCommand", Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))).redirectErrorStream(true).start()
-            process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(request.toString()) }
-            var output = ""
-            val reader = thread(isDaemon = true, name = "diagnostic-inventory") {
-                output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            }
-            if (!process.waitFor(90, TimeUnit.SECONDS)) {
-                process.destroyForcibly(); reader.join(2000)
-                error("Inventory exceeded 90 seconds; no game process was stopped")
-            }
-            reader.join(2000)
-            check(!reader.isAlive && process.exitValue() == 0) { "Inventory failed: ${output.take(4000)}" }
-            hubJson.parseToJsonElement(output) // Never mislabel PowerShell error text as valid JSON.
-            output
+            val result = ReadOnlyProcess.capture(listOf("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-ExecutionPolicy", "Bypass",
+                "-EncodedCommand", Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))),
+                request.toString(), timeoutMs = 90_000, maximumBytes = 4 * 1024 * 1024)
+            check(result.exitCode == 0) { "Inventory failed: ${result.output.take(4000)}" }
+            hubJson.parseToJsonElement(result.output) // Never mislabel PowerShell error text as valid JSON.
+            result.output
         }.getOrElse { buildJsonObject { put("collectionError", it.toString()) }.toString() }
     }
 }

@@ -31,7 +31,11 @@ data class HubState(
     val visibleProjects get(): List<Project> {
         val listed = projects + settings.installed.values.filter { installed -> projects.none { it.id == installed.id } }.map { it.asProject() }
         val locals = if (settings.developing) settings.development.projects.values.map { it.project } + settings.development.prepared.values.map { it.asProject() } else emptyList()
-        val combined = (listed + locals).distinctBy { it.id }
+        val combined = (listed + locals).distinctBy { it.id }.map { project ->
+            if (settings.developing && settings.development.origins[project.id] == ModOrigin.LOCAL)
+                locals.firstOrNull { it.id == project.id } ?: project
+            else project
+        }
         return combined + releaseErrors.keys.filter { id -> combined.none { it.id == id } }.map { Project(it, if (it in listOf("sdk", "tco")) it else "native-mod", "0.0.0") }
     }
 }

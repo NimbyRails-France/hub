@@ -14,6 +14,60 @@ import kotlin.io.path.*
 import kotlin.test.*
 
 class LocalProjectsTest {
+    @Test fun sourceMetadataControlsStatusEvenWhenAnOldDistributionManifestStillHasABadge() {
+        val root = Files.createTempDirectory("nrf-local-status-")
+        root.resolve("project.json").writeText(hubJson.encodeToString(project().copy(developmentStatus = "stable")))
+        root.resolve("hub-local.json").writeText("""{"manifest":"project.json","task":"packageTool","archive":"build/tool.zip"}""")
+        assertEquals("stable", LocalProjects.read(root).project.developmentStatus)
+        for (field in listOf("", ",\"developmentStatus\":null", ",\"developmentStatus\":\"in-development\"", ",\"developmentStatus\":\"future-status\"")) {
+            root.resolve("mod.json").writeText("""{"id":"fixture","version":"1.0.0"$field}""")
+            val expected = when {
+                "in-development" in field -> "in-development"
+                "future-status" in field -> "future-status"
+                else -> null
+            }
+            assertEquals(expected, LocalProjects.read(root).project.developmentStatus)
+        }
+    }
+
+    @Test fun sdkSourceUsesExplicitReleaseMetadataWithoutInferringFromItsChannel() {
+        org.junit.Assume.assumeTrue(Host.windows)
+        val root = Files.createTempDirectory("nrf-sdk-status-")
+        root.resolve("VERSION").writeText("0.9.0-alpha.1")
+        root.resolve("CMakeLists.txt").writeText("fixture")
+        root.resolve("tools/windows").createDirectories().resolve("build-for-hub.ps1").writeText("fixture")
+        root.resolve("hub-local.json").writeText("""{"builder":"windows-sdk","gameSha256":["${"b".repeat(64)}"]}""")
+        assertNull(LocalProjects.read(root).project.developmentStatus)
+        for (field in listOf("", ",\"developmentStatus\":null", ",\"developmentStatus\":\"stable\"", ",\"developmentStatus\":\"future-status\"")) {
+            root.resolve("release-channels.json").writeText("""{"channels":["alpha"]$field}""")
+            val expected = when {
+                "future-status" in field -> "future-status"
+                "stable" in field -> "stable"
+                else -> null
+            }
+            val project = LocalProjects.read(root).project
+            assertEquals(expected, project.developmentStatus)
+            assertEquals("alpha", project.channel)
+        }
+    }
+
+    @Test fun renamedSourceFolderDoesNotRenameTheModOrItsDistributionArchive() {
+        val root = Files.createTempDirectory("nrf-repository-name-").resolve("ba-signal-placement").createDirectory()
+        root.resolve("gradle/wrapper").createDirectories().resolve("gradle-wrapper.jar").writeText("fixture")
+        root.resolve("mod.json").writeText("""{
+            "id":"signal-placement","name":"BA Signal Placement","modId":"SignalPlacement","module":"SignalPlacementMod",
+            "version":"1.0.0","language":"kotlin-native","sdkMin":"0.9.0-alpha.1","sdkMaxExclusive":"0.10.0",
+            "gameSha256":["${"b".repeat(64)}"]
+        }""")
+        val local = LocalProjects.read(root)
+        assertEquals("signal-placement", local.project.id)
+        assertEquals("SignalPlacement", local.project.modId)
+        assertEquals("SignalPlacementMod.${Host.moduleExtension}", local.project.module)
+        assertEquals("SignalPlacement-1.0.0", local.project.rootFolder)
+        assertEquals("build/${if (Host.windows) "gradle" else "gradle-linux"}/distributions/SignalPlacement-1.0.0-${Host.id}.zip", local.archive)
+        assertEquals(root.toRealPath().toString(), local.directory)
+    }
+
     @Test fun kotlinProjectNeedsOnlySourceManifestBeforeFirstBuild() {
         val root = Files.createTempDirectory("nrf-kotlin-source-")
         root.resolve("gradle/wrapper").createDirectories().resolve("gradle-wrapper.jar").writeText("fixture")

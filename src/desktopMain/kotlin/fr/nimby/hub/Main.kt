@@ -91,6 +91,7 @@ fun main(args: Array<String>) {
         val logo = remember { BitmapPainter(hubLogo.toComposeImageBitmap()) }
         val state by controller.state.collectAsState()
         var visible by remember { mutableStateOf(true) }
+        var creatingProject by remember { mutableStateOf(false) }
         val windowState = rememberWindowState(width = state.settings.windowWidth.dp, height = state.settings.windowHeight.dp)
         var previousPlacement by remember { mutableStateOf(WindowPlacement.Floating) }
         fun show() { visible = true; windowState.isMinimized = false }
@@ -170,7 +171,8 @@ fun main(args: Array<String>) {
                 val downgrade = if (current != null && Versions.compare(project.version, current.version) < 0) tr("\nCette version est plus ancienne que {0}.", current.version) else ""
                 if (confirm(tr("{0} {1} ({2})\nInstaller dans {3} ?{4}\n\nFermez le jeu et le TCO avant l'installation.", project.name, project.version, Versions.channel(project.version), destination, downgrade))) controller.installProject(project, destination, archive)
             }
-            HubScreen(state, HubActions(
+            // The project form owns creation errors so the user's input stays visible.
+            HubScreen(if (creatingProject) state.copy(operationError = null) else state, HubActions(
                 language = controller::changeLanguage,
                 chooseGame = { choose(tr("Dossier contenant {0}", Host.gameName), true, state.settings.gameDirectory)?.let { controller.setGame(it.toString()) } },
                 checkGame = controller::checkGame,
@@ -209,6 +211,7 @@ fun main(args: Array<String>) {
                     }
                     choose(tr("Ajouter un projet local"), true, start)?.let { controller.addLocalProject(it, kind) }
                 },
+                createProject = { controller.clearError(); creatingProject = true },
                 origin = controller::chooseOrigin,
                 compile = controller::compile,
                 openIdea = { local -> runCatching {
@@ -251,6 +254,9 @@ fun main(args: Array<String>) {
                 },
                 repairSdk = { if (confirm(tr("Fermez le jeu. Le Hub va vérifier puis sauvegarder le chargeur actuel et restaurer la SDL d’origine. Vous devrez ensuite réappliquer votre profil ou réinstaller le SDK. Continuer ?"))) controller.repairSdk() },
             ), logo = logo)
+            if (creatingProject) NewProjectDialog(state,
+                onDismiss = { if (!state.busy) { creatingProject = false; controller.clearError() } },
+                onCreate = { request -> controller.createProject(request) { creatingProject = false } })
         }
     }
 }

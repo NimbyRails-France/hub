@@ -13,14 +13,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-# Keep the player-facing product names used by the existing GitHub releases.
+from project_identities import historical_asset_url, matches_asset_url, project_id
+
+# Player-facing names are keyed by stable project IDs, independently of GitHub slugs.
 PROJECT_NAMES = {
     'sdk': 'NimbyRails France SDK',
     'hub': 'NimbyRails France Hub',
     'tco': 'Nimby TCO',
-    'signalisationfrancaiserealiste': 'Signalisation française réaliste',
-    'signal-placement': 'Signal Placement',
-    'time-change': 'Time Change',
+    'signalisationfrancaiserealiste': 'AB Signalisation lumineuse',
+    'signal-placement': 'BA Signal Placement',
+    'time-change': 'BB Timechange',
 }
 PROJECTS = set(PROJECT_NAMES)
 VERSION = re.compile(r'(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})(?:-(?:alpha|beta)\.[1-9][0-9]{0,8})?')
@@ -45,8 +47,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 class GitHub:
     def __init__(self, repository, token):
-        if repository not in {'NimbyRails-France/' + name for name in PROJECTS}:
-            raise ValueError('Unsupported repository')
+        project_id(repository)
         if not token:
             raise ValueError('Configure the Woodpecker nrf_release_token secret')
         self.repository, self.token = repository, token
@@ -118,8 +119,7 @@ def assets_for(api, release):
 
 
 def validate_inputs(plan, source, repository, commit):
-    if repository not in {'NimbyRails-France/' + name for name in PROJECTS}:
-        raise ValueError('Unsupported repository')
+    project_id(repository)
     if not VERSION.fullmatch(plan['version']) or not re.fullmatch('[0-9a-f]{40}', commit):
         raise ValueError('Invalid release version or CI commit')
     if plan.get('commit') != commit:
@@ -152,6 +152,7 @@ def verify_asset(actual, expected):
 def public_catalogue(api):
     releases = []
     repository = api.repository
+    project = project_id(repository)
     for page in range(1, 11):
         batch = api.request('GET', f'/releases?per_page=100&page={page}')
         for release in batch:
@@ -159,16 +160,21 @@ def public_catalogue(api):
             if (not release['tag_name'].startswith('v') or not VERSION.fullmatch(version) or
                     release['draft'] or not release.get('published_at') or release['prerelease'] != ('-' in version)):
                 continue
-            prefix = f"https://github.com/{repository}/releases/download/{release['tag_name']}/"
             assets = []
             for item in assets_for(api, release):
-                if not NAME.fullmatch(item['name']) or item['state'] != 'uploaded' or item['browser_download_url'] != prefix + item['name']:
+                if (not NAME.fullmatch(item['name']) or item['state'] != 'uploaded' or
+                        not matches_asset_url(repository, release['tag_name'], item['name'], item['browser_download_url'])):
                     continue
-                assets.append({key: item.get(key) for key in ('name', 'state', 'browser_download_url', 'size', 'digest')})
+                asset = {key: item.get(key) for key in ('name', 'state', 'size', 'digest')}
+                # Preserve old Hub's exact repository-prefix contract. GitHub's
+                # public redirect resolves this historical URL after the rename;
+                # authenticated API calls still use the exact CI repository.
+                asset['browser_download_url'] = historical_asset_url(repository, release['tag_name'], item['name'])
+                assets.append(asset)
             releases.append(dict(tag_name=release['tag_name'], draft=False, prerelease=release['prerelease'],
                                  published_at=release['published_at'], body=release.get('body') or '', assets=assets))
         if len(batch) < 100:
-            return dict(schema=1, project=repository.split('/')[1], releases=releases)
+            return dict(schema=1, project=project, releases=releases)
     raise ValueError('Release history exceeds the public catalogue limit')
 
 
@@ -176,7 +182,7 @@ def publish(plan, source, api, commit):
     source = Path(source)
     names = validate_inputs(plan, source, api.repository, commit)
     tag = 'v' + plan['version']
-    title = f"{PROJECT_NAMES[api.repository.split('/')[-1]]} {plan['version']}"
+    title = f"{PROJECT_NAMES[project_id(api.repository)]} {plan['version']}"
     release = find_release(api, tag)
     if release is None:
         release = api.request('POST', '/releases', dict(tag_name=tag, target_commitish=commit, name=title,

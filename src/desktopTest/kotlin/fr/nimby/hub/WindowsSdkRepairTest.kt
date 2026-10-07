@@ -14,7 +14,7 @@ class WindowsSdkRepairTest {
     private val dlls = listOf("NimbyRailsFranceSDK.dll", "libwinpthread-1.dll",
         "NimbyRailsFranceTextureBridge-experimental-v4.dll", "NimbySignalUiBridge-experimental-v1.dll",
         "NimbyAutomaticDrivingBridge-v1.dll", "NimbyConstructionBridge-experimental-v1.dll",
-        "NimbyRailsFranceClockBridge-0.7.1.dll", "NimbyModMetadataBridge-v1.dll")
+        "NimbyRailsFranceClockBridge-0.7.1.dll", "NimbyModMetadataBridge-v1.dll", "NimbyRailsFranceModHost.exe")
 
     @Test fun preexistingDllsAreAcceptedOnlyWhenIdenticalToDistribution() {
         val root = Files.createTempDirectory("nrf-preflight-")
@@ -52,7 +52,7 @@ class WindowsSdkRepairTest {
             val m = hubJson.parseToJsonElement(f.game.resolve(WindowsSdkRepair.MANIFEST).readText()).jsonObject.toMutableMap()
             m["format"] = JsonPrimitive(if(sharedFiles) "3" else "2")
             fields.forEach { (key, name) -> m[key] = JsonPrimitive(f.game.resolve(name).sha256()) }
-            m["additionalBridges"] = JsonObject(dlls.takeLast(2).associateWith { JsonPrimitive(f.game.resolve(it).sha256()) })
+            m["additionalBridges"] = JsonObject(dlls.drop(6).associateWith { JsonPrimitive(f.game.resolve(it).sha256()) })
             if (sharedFiles) m["sharedFiles"] = JsonObject(dlls.associateWith { JsonPrimitive(f.game.resolve(it).sha256()) })
             f.game.resolve(WindowsSdkRepair.MANIFEST).writeText(JsonObject(m).toString())
             val before = f.snapshot()

@@ -12,6 +12,7 @@ import kotlin.io.path.*
 open class Windows(private val programsDirectory: Path = Path(System.getenv("APPDATA") ?: "", "Microsoft/Windows/Start Menu/Programs"),
                    private val log: (String) -> Unit = {}) : DesktopPlatform {
     override val supported get() = System.getProperty("os.name").startsWith("Windows")
+    private val gameMonitor = fr.nimby.hub.platform.windows.RunningExecutable()
 
     private fun invoke(action: String, vararg values: Pair<String, String>): String {
         check(supported) { tr("L'installation du SDK et des mods nécessite Windows.") }
@@ -23,18 +24,31 @@ open class Windows(private val programsDirectory: Path = Path(System.getenv("APP
         val resource = checkNotNull(javaClass.getResourceAsStream("/windows.ps1")) { tr("Adaptateur Windows absent") }
         val script = resource.bufferedReader().use { it.readText() }
         val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
-        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded)
-            .redirectErrorStream(true).start()
+        val command = listOf("powershell.exe", "-NoProfile", "-NonInteractive", "-OutputFormat", "Text", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded)
+        if (action in READ_ONLY_QUERIES) {
+            val result = fr.nimby.hub.platform.windows.ReadOnlyProcess.capture(command, request.toString(),
+                timeoutMs = if (action == "checkTree") 120_000 else 30_000)
+            check(result.exitCode == 0) { result.output.trim() }
+            return result.output.trim()
+        }
+        val process = ProcessBuilder(command).redirectErrorStream(true).start()
         process.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(request.toString()) }
         val output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         check(process.waitFor() == 0) { output.trim() }
         return output.trim()
     }
 
+    private companion object {
+        val READ_ONLY_QUERIES = setOf("closed", "gameRunning", "linkTarget", "checkTree")
+    }
+
     override fun requireClosed(game: Path, destination: Path) {
         invoke("closed", "game" to game.toString(), "destination" to destination.toString())
     }
-    override fun gameRunning(game: Path): Boolean = invoke("gameRunning", "game" to game.toString()) == "true"
+    override fun gameRunning(game: Path): Boolean =
+        gameMonitor.isRunning(game.resolve("NIMBYRails.exe")) {
+            invoke("gameRunning", "game" to game.toString()) == "true"
+        }
     override fun requestGameClose(game: Path) { invoke("requestGameClose", "game" to game.toString()) }
     override fun launchGame(game: Path) { ProcessBuilder(game.resolve("NIMBYRails.exe").toString()).directory(game.toFile()).start() }
     override fun linkTarget(path: Path): String? = invoke("linkTarget", "path" to path.toString()).ifEmpty { null }

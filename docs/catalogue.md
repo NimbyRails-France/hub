@@ -6,6 +6,41 @@ au format `X.Y.Z`, `X.Y.Z-alpha.N` ou `X.Y.Z-beta.N`, `url`, `sha256`, `size`, `
 Le ZIP contient un unique dossier racine nommé `rootFolder`.
 Les URL de projets doivent pointer vers des releases HTTPS de NimbyRails-France.
 
+## Étiquette à côté du nom
+
+Le champ facultatif `developmentStatus` décrit l’état du projet dans le Hub :
+
+```json
+"developmentStatus": "in-development"
+```
+
+- `in-development` affiche **En cours de développement** (anglais : **In development**).
+- `stable` affiche **Stable**.
+- Sans ce champ, aucune étiquette n’est affichée. Un ancien Hub ignore le champ ;
+  un Hub qui reçoit une valeur future inconnue n’affiche aucune étiquette.
+
+Pour un mod Kotlin, ajoutez ce champ dans `mod.json`, puis reconstruisez le paquet
+avec le kit SDK 0.9 qui le prend en charge. Le plugin le recopie dans `project.json`.
+Les nouveaux projets créés par le Hub commencent avec `in-development`.
+Pour le SDK et le TCO officiels, renseignez le même champ à la racine de
+`release-channels.json` : leurs générateurs le recopient dans `project.json`.
+Les autres générateurs de paquets peuvent le fournir directement dans leur
+manifeste. Le statut est conservé avec l’installation, y compris hors ligne.
+
+L’étiquette apparaît dans la bibliothèque et à côté du titre, dans les profils
+Jouer et Développer. Elle ne change ni le nom, ni le canal de mises à jour, ni les
+prérequis SDK. Une version `0.1.0` est stable pour la sélection des mises à jour ;
+son étiquette dépend uniquement de `developmentStatus`. Modifier un fichier source
+local ne modifie pas les manifestes déjà publiés.
+
+**English:** Set the optional `developmentStatus` in your Kotlin mod’s `mod.json`
+to `in-development` or `stable`, then rebuild with a supporting SDK 0.9 kit.
+The generated `project.json` carries the status beside the project name in both
+Hub profiles. Other package generators can include the same field directly in
+their release manifest; the official SDK and TCO read it from `release-channels.json`.
+Missing or unknown values show no badge. The status is
+independent of the release channel and SDK requirements and survives offline use.
+
 Le canal stable reçoit uniquement les versions stables. Les canaux alpha et
 bêta choisissent la plus récente entre leur propre canal et les stables, parmi
 les releases proposant un paquet pour la plateforme courante. Par exemple,

@@ -4,6 +4,40 @@ import fr.nimby.hub.model.*
 import kotlin.test.*
 
 class DistributionTest {
+    @Test fun renamedRepositoriesPreserveDistributionIdsAndAssetIdentity() {
+        val renamed = mapOf("signalisationfrancaiserealiste" to "ab-signalisation-lumineuse",
+            "signal-placement" to "ba-signal-placement", "time-change" to "bb-timechange")
+        for ((id, repository) in renamed) {
+            val legacy = "https://github.com/NimbyRails-France/$id/releases/download/v1.0.0/mod.zip"
+            val canonical = "https://github.com/NimbyRails-France/$repository/releases/download/v1.0.0/mod.zip"
+            val server = "${DistributionLocation.origin}/releases/$id/v1.0.0/mod.zip"
+            assertEquals(repository, DistributionLocation.githubRepository(id))
+            assertEquals(id, DistributionLocation.projectForRepository(repository))
+            assertTrue(id in DistributionLocation.projects)
+            assertFalse(repository in DistributionLocation.projects)
+            assertEquals(canonical, DistributionLocation.githubMirror(legacy))
+            assertEquals(canonical, DistributionLocation.githubMirror(server))
+            assertEquals(server, DistributionLocation.serverMirror(canonical))
+            assertEquals(server, DistributionLocation.serverMirror(legacy))
+            assertEquals("https://github.com/NimbyRails-France/$repository/releases/tag/v1.0.0",
+                DistributionLocation.githubPage(id, "1.0.0"))
+            assertTrue(DistributionLocation.sameGithubAsset(legacy, canonical))
+            assertTrue(ReleaseSelection.officialAsset(canonical, id, "v1.0.0"))
+            assertTrue(ReleaseSelection.officialAsset(legacy, id, "v1.0.0"))
+            assertFalse(ReleaseSelection.officialAsset(canonical, "sdk", "v1.0.0"))
+            assertFalse(ReleaseSelection.officialAsset(canonical, id, "v1.0.1"))
+            for (bad in listOf(canonical.replace(repository, "sdk"), canonical.replace("v1.0.0", "v1.0.1"),
+                canonical.replace("mod.zip", "other.zip"), canonical + "?redirect=1", canonical + "#fragment",
+                canonical.replace("mod.zip", "%6dod.zip"), canonical.replace("NimbyRails-France", "OtherOrg"))) {
+                assertFalse(DistributionLocation.sameGithubAsset(legacy, bad), bad)
+            }
+            val oldCatalogue = "https://github.com/NimbyRails-France/$id/releases/download/catalogue/releases.json"
+            assertTrue(DistributionLocation.sameGithubCatalogue(oldCatalogue, DistributionLocation.githubCatalogue(id)))
+            assertFalse(DistributionLocation.sameGithubCatalogue(oldCatalogue, DistributionLocation.githubCatalogue("sdk")))
+        }
+        assertEquals("future-mod", DistributionLocation.githubRepository("future-mod"))
+    }
+
     @Test fun serverAssetsAreBoundToTheirProjectAndVersion() {
         val url = "${DistributionLocation.origin}/releases/sdk/v0.8.0-alpha.1/sdk.zip"
         assertTrue(DistributionLocation.official(url))

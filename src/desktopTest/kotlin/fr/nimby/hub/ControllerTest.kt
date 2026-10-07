@@ -16,6 +16,27 @@ import kotlin.test.*
 class ControllerTest {
     @AfterTest fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
 
+    @Test fun invalidSavedChannelUsesTheSameStableFallbackForDisplayAndCatalogue() = runTest {
+        val root = Files.createTempDirectory("nrf-channel-fallback-")
+        val store = SettingsStore(root)
+        store.write(HubSettings(developerMode = true, channels = mapOf("sdk" to "dev", "signals" to "alpha")))
+        var requested: Map<String, String>? = null
+        val source = object : Source() {
+            override suspend fun catalogue(channels: Map<String, String>): Catalogue {
+                requested = channels
+                return Catalogue(1, emptyList())
+            }
+        }
+        val controller = HubController(store, backgroundScope, source, journal = HubLog(root.resolve("logs")))
+        try {
+            controller.refresh(); runCurrent()
+            controller.state.first { !it.busy }
+            assertEquals("stable", controller.state.value.settings.selectedChannel("sdk"))
+            assertEquals(mapOf("sdk" to "stable", "signals" to "alpha"), requested)
+            assertEquals(0, source.downloadCalls)
+        } finally { controller.close() }
+    }
+
     @Test fun gameFolderValidationRejectsMissingFilesAndClearsThePreviousHash() = runTest {
         val root = Files.createTempDirectory("nrf-game-setup-")
         val store = SettingsStore(root.resolve("profile"))

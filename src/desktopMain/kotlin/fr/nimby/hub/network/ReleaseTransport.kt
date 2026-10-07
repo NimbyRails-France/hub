@@ -35,7 +35,7 @@ class HttpReleaseTransport : ReleaseTransport {
         internal fun allowedRedirect(original: String, next: URI): Boolean =
             (DistributionLocation.github(original) || DistributionLocation.isGithubCatalogue(original)) && next.scheme == "https" && next.userInfo == null &&
                 next.port in listOf(-1, 443) && next.fragment == null &&
-                (DistributionLocation.github(next.toString()) || DistributionLocation.isGithubCatalogue(next.toString()) ||
+                (DistributionLocation.sameGithubAsset(original, next.toString()) || DistributionLocation.sameGithubCatalogue(original, next.toString()) ||
                     next.host in setOf("release-assets.githubusercontent.com", "objects.githubusercontent.com"))
     }
 

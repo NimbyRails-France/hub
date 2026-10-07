@@ -150,7 +150,8 @@ class ProjectManager(private val windows: DesktopPlatform = desktopPlatform(), p
             Archives.extract(archive, stage, project.rootFolder)
             var next = InstalledProject(project.id, project.kind, project.version, destination.toString(), project.name,
                 project.gameSha256, project.sdkMin, project.sdkMaxExclusive, project.loaderApi, project.module,
-                installedUtc = Instant.now().toString(), modId = project.modId, origin = request.origin, platform = project.platform)
+                installedUtc = Instant.now().toString(), modId = project.modId, origin = request.origin, platform = project.platform,
+                developmentStatus = project.developmentStatus)
             when (project.kind) {
                 "sdk" -> require(stage.resolve(if (Host.linux) "loader/${LinuxSdkInstallation.library}" else Host.proxyInstaller).isRegularFile()) { tr("Chargeur SDK absent") }
                 "tco" -> require(stage.resolve(Host.tcoName).isRegularFile()) { tr("Exécutable TCO absent") }

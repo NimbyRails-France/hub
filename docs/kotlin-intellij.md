@@ -125,7 +125,7 @@ ou les métadonnées d'un manifeste connu du catalogue.
 Le Hub conserve les contraintes du jeu et du SDK du manifeste, sans inventer
 une compatibilité.
 
-Le parcours Kotlin/Native déjà utilisé par Signalisation française réaliste
+Le parcours Kotlin/Native déjà utilisé par AB Signalisation lumineuse
 est reconnu : wrapper Gradle dans le projet, `language: kotlin-native` dans
 `mod.json`, tâche `packageMod`, ZIP sous `build/gradle/distributions/` portant
 le nom `<modId>-<version>-windows-x64.zip` pour le manifeste source complet.

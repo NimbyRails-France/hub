@@ -5,6 +5,25 @@ import kotlinx.serialization.encodeToString
 import kotlin.test.*
 
 class ReleasesTest {
+    @Test fun repositoryAliasesDoNotRelaxPublishedAssetSizeHashOrNameChecks() {
+        val old = "https://github.com/NimbyRails-France/signal-placement/releases/download/v1.0.0/mod.zip"
+        val canonical = DistributionLocation.githubMirror(old)
+        val hash = "a".repeat(64)
+        for ((declared, requested) in listOf(old to canonical, canonical to old)) {
+            val release = GitHubRelease("v1.0.0", publishedAt = "2026-10-07T12:00:00Z",
+                assets = listOf(ReleaseAsset("mod.zip", "uploaded", declared, 42, "sha256:$hash")))
+            fun validate(url: String = requested, size: Long = 42, digest: String = hash) =
+                ReleaseSelection.validateAsset(release, "signal-placement", "1.0.0", "stable", url, size, digest)
+            validate()
+            assertFails { validate(size = 41) }
+            assertFails { validate(digest = "b".repeat(64)) }
+            assertFails { validate(url = requested.replace("mod.zip", "other.zip")) }
+            assertFails { validate(url = DistributionLocation.githubDownload("time-change", "1.0.0", "mod.zip")) }
+            assertFails { validate(url = requested.replace("v1.0.0", "v1.0.1")) }
+            assertFails { validate(url = requested + "?token=1") }
+        }
+    }
+
     private fun release(version: String, prerelease: Boolean = false): GitHubRelease {
         val base = "https://github.com/NimbyRails-France/sdk/releases/download/v$version/"
         return GitHubRelease("v$version", prerelease = prerelease, publishedAt = "2026-09-18T10:00:00Z", assets = listOf(

@@ -53,11 +53,10 @@ object ReleaseSelection {
     }
 
     fun officialAsset(url: String, repo: String, tag: String): Boolean {
-        if (tag.startsWith('v') && DistributionLocation.forRelease(url, repo, tag.removePrefix("v"))) return true
-        val prefix = "https://github.com/NimbyRails-France/$repo/releases/download/$tag/"
-        if (!url.startsWith(prefix)) return false
-        val name = url.removePrefix(prefix)
-        return name.isNotEmpty() && name !in listOf(".", "..") && name.none { it in "/\\?#%" || it.code < 32 }
+        if (!tag.startsWith('v')) return false
+        val version = tag.removePrefix("v")
+        return DistributionLocation.forRelease(url, DistributionLocation.projectForRepository(repo), version) ||
+            DistributionLocation.githubForRelease(url, repo, version)
     }
 
     fun assetUrl(release: GitHubRelease, repo: String, name: String): String = release.assets.firstOrNull {
@@ -67,7 +66,10 @@ object ReleaseSelection {
     fun validateAsset(release: GitHubRelease, repo: String, version: String, channel: String?, url: String, size: Long, hash: String) {
         require(version == release.version && (channel == null || channel == Versions.channel(version))) { tr("Version ou canal incohérent avec la release") }
         require(officialAsset(url, repo, release.tag)) { tr("Asset d'une autre release") }
-        val asset = release.assets.firstOrNull { it.url == url && it.state == "uploaded" && it.size == size }
+        // A repository alias only changes its slug, never the project, tag or asset filename.
+        val asset = release.assets.firstOrNull {
+            (it.url == url || DistributionLocation.sameGithubAsset(it.url, url)) && it.state == "uploaded" && it.size == size
+        }
         require(asset != null && (asset.digest.isNullOrEmpty() || asset.digest.equals("sha256:$hash", true))) { tr("Taille ou empreinte différente du catalogue") }
     }
 }

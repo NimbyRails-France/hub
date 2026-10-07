@@ -33,7 +33,7 @@ class WindowsSdkRepair(private val data: Path, private val requireClosed: (Path)
             "signalUiBridgeSha256" to listOf("NimbySignalUiBridge-experimental-v1.dll"),
             "automaticDrivingBridgeSha256" to listOf("NimbyAutomaticDrivingBridge-v1.dll"),
             "constructionBridgeSha256" to listOf("NimbyConstructionBridge-experimental-v1.dll"))
-        private val additional = setOf("NimbyRailsFranceClockBridge-0.7.1.dll", "NimbyModMetadataBridge-v1.dll")
+        private val additional = setOf("NimbyRailsFranceClockBridge-0.7.1.dll", "NimbyModMetadataBridge-v1.dll", "NimbyRailsFranceModHost.exe")
         private val reusable = setOf("NimbyRailsFranceSDK.dll") + optional.values.flatten() + additional
         // Byte identity with the dependency distributed in SDK 0.6.6. Other
         // pre-existing versions are never assumed to belong to this project.

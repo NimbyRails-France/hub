@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -30,6 +32,7 @@ data class HubActions(
     val channel: (String, String) -> Unit = { _, _ -> }, val notes: (Project) -> Unit = {},
     val choosePath: (PathSetting) -> Unit = {}, val profile: (HubProfile) -> Unit = {},
     val addLocal: (String) -> Unit = {}, val origin: (String, ModOrigin) -> Unit = { _, _ -> },
+    val createProject: () -> Unit = {},
     val compile: (String) -> Unit = {}, val openIdea: (LocalProject) -> Unit = {},
     val forgetLocal: (String) -> Unit = {}, val launchGame: (Boolean) -> Unit = {},
     val launchTool: (String) -> Unit = {}, val applyProfile: () -> Unit = {},
@@ -129,7 +132,10 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     OutlinedTextField(query, { query = it }, singleLine = true, placeholder = { Text(tr("Rechercher…")) },
                                         modifier = Modifier.weight(1f), textStyle = MaterialTheme.typography.bodyMedium)
-                                    if (state.settings.developing) OutlinedButton({ actions.addLocal(page.kind!!) }, enabled = !state.busy && state.windows) { Text(tr("Ajouter un projet local")) }
+                                    if (state.settings.developing) {
+                                        if (page == HubPage.MODS) OutlinedButton(actions.createProject, enabled = !state.busy && state.windows) { Text(tr("Créer un projet")) }
+                                        OutlinedButton({ actions.addLocal(page.kind!!) }, enabled = !state.busy && state.windows) { Text(tr("Ajouter un projet local")) }
+                                    }
                                     OutlinedButton(actions.refresh, enabled = !state.busy) { Text(tr("Actualiser")) }
                                 }
                                 if (projects.isEmpty()) EmptyLibrary(page, state.settings.developing)
@@ -140,7 +146,7 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
                                                 val record = state.settings.selectedRecord(item.id)
                                                 Column(Modifier.fillMaxWidth().background(if (item.id == project?.id) Color(0xFFECF1FB) else Color.White)
                                                     .clickable { selected = item.id }.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                                    Text(item.name, style = MaterialTheme.typography.titleSmall)
+                                                    ProjectHeading(item)
                                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                         Text(record?.version ?: tr("Non installé"), color = muted, style = MaterialTheme.typography.bodySmall)
                                                         if (state.settings.developing && state.settings.development.origins[item.id] == ModOrigin.LOCAL)
@@ -156,7 +162,9 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
                                             }
                                         }
                                     }
-                                    project?.let { ProjectDetail(it, state, actions, Modifier.width(330.dp).fillMaxHeight()) }
+                                    project?.let { ProjectDetail(it, state, actions, Modifier.width(330.dp).fillMaxHeight(), openSdk = {
+                                        page = HubPage.SDK; selected = null; query = ""
+                                    }) }
                                 }
                             }
                         }
@@ -211,7 +219,28 @@ private fun EmptyLibrary(page: HubPage, development: Boolean) {
 }
 
 @Composable
-private fun ProjectDetail(project: Project, state: HubState, actions: HubActions, modifier: Modifier = Modifier) {
+@OptIn(ExperimentalLayoutApi::class)
+private fun ProjectHeading(project: Project, prominent: Boolean = false) {
+    // This describes the author's project status, independently of the release
+    // channel. Wrapping keeps long names and translated labels readable.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(project.name, style = if (prominent) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleSmall,
+            fontWeight = if (prominent) FontWeight.SemiBold else null, modifier = Modifier.align(Alignment.CenterVertically))
+        val label = when (project.developmentStatus) {
+            "in-development" -> tr("En cours de développement")
+            "stable" -> tr("Stable")
+            else -> null // Older manifests and future statuses never imply a maturity level.
+        }
+        if (label != null) Surface(shape = RoundedCornerShape(50), modifier = Modifier.align(Alignment.CenterVertically),
+            color = if (project.developmentStatus == "stable") Color(0xFFE5F3EB) else Color(0xFFFFF1D6),
+            contentColor = if (project.developmentStatus == "stable") Color(0xFF25613E) else Color(0xFF785009)) {
+            Text(label, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun ProjectDetail(project: Project, state: HubState, actions: HubActions, modifier: Modifier = Modifier, openSdk: () -> Unit = {}) {
     val s = state.settings
     val installed = s.installed[project.id]
     val local = s.development.projects[project.id]
@@ -219,8 +248,12 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
     val localSelected = s.developing && s.development.origins[project.id] == ModOrigin.LOCAL
     val record = s.selectedRecord(project.id)
     val result = s.development.builds[project.id]
+    // Published packages update the usual installation. A selected development
+    // SDK is shown separately below and must not enable that installation.
+    val installationReason = runCatching { ProjectRules.incompatibility(project, state.gameHash, s.installed) }
+        .getOrElse { tr("Prérequis de l’installation non vérifiables") }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text(project.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        ProjectHeading(project, prominent = true)
         Text(if (project.kind == "tco") tr("Utilitaire") else if (project.kind == "sdk") tr("SDK et chargeur") else tr("Mod"), color = muted, style = MaterialTheme.typography.labelLarge)
         if (s.developing) {
             HorizontalDivider()
@@ -252,11 +285,11 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
             InfoLine(tr("Installée"), installed?.version ?: "—")
             InfoLine(tr("Disponible"), if (project.id in state.availableProjects) project.version else tr("Non vérifiée"))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("Canal"), modifier = Modifier.weight(1f), color = muted, style = MaterialTheme.typography.bodyMedium)
-                ChannelSelector(s.selectedChannel(project.id), !state.busy) { actions.channel(project.id, it) }
+                ChannelSelector(project.name, s.selectedChannel(project.id), !state.busy) { actions.channel(project.id, it) }
             }
+            if (project.kind != "sdk") SdkPrerequisitesCard(project, state, openSdk)
             Button({ actions.install(project) }, enabled = !state.busy && state.windows && !state.checkingGame &&
-                ProjectRules.incompatibility(project, state.gameHash, s.installed) == null &&
+                installationReason == null &&
                 project.id in state.availableProjects && s.appliedProfile == HubProfile.PLAY && !s.legacyProtection,
                 modifier = Modifier.fillMaxWidth()) { Text(if (installed == null) tr("Installer") else tr("Mettre à jour")) }
             if (s.appliedProfile != HubProfile.PLAY) Text(tr("Revenez à Jouer pour modifier l’installation habituelle."), color = muted, style = MaterialTheme.typography.bodySmall)
@@ -266,8 +299,14 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
             }
         }
         HorizontalDivider()
-        val reason = runCatching { ProfileRules.resolve(s).let { ProjectRules.incompatibility(record?.asProject() ?: project, state.gameHash, it) } }.getOrElse { it.message }
-        Text(state.releaseErrors[project.id] ?: reason ?: tr("Compatible avec le profil sélectionné"), color = muted, style = MaterialTheme.typography.bodySmall)
+        val reason = if (localSelected) runCatching {
+            ProfileRules.resolve(s).let { ProjectRules.incompatibility(record?.asProject() ?: project, state.gameHash, it) }
+        }.getOrElse { it.message ?: tr("Prérequis de l’installation non vérifiables") } else installationReason
+        val compatibility = if (reason != null) {
+            if (localSelected) reason else tr("Installation habituelle : {0}", reason)
+        } else if (localSelected) tr("Compatible avec le profil sélectionné") else tr("Compatible avec l’installation habituelle")
+        Text(state.releaseErrors[project.id] ?: compatibility,
+            color = muted, style = MaterialTheme.typography.bodySmall)
         if (record != null) {
             Text(record.directory, color = muted, style = MaterialTheme.typography.bodySmall)
             TextButton({ actions.open(record) }) { Text(tr("Ouvrir le dossier d’installation")) }
@@ -278,9 +317,45 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
 }
 
 @Composable
+private fun SdkPrerequisitesCard(project: Project, state: HubState, openSdk: () -> Unit) {
+    val prerequisites = SdkPrerequisites.forProject(project, state.settings)
+    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFF2F5FA), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionTitle(tr("Prérequis"))
+            if (project.id !in state.availableProjects) {
+                Text(tr("Actualisez le catalogue pour vérifier les prérequis de la version disponible."), color = muted, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text(tr("Pour la version {0}", project.version), color = muted, style = MaterialTheme.typography.bodySmall)
+                if (prerequisites.minimum != null || prerequisites.maximumExclusive != null) {
+                    Text(tr("SDK minimum : {0} (inclus)", prerequisites.minimum ?: tr("Non renseigné")), style = MaterialTheme.typography.bodySmall)
+                    Text(tr("SDK maximum : {0} (exclu)", prerequisites.maximumExclusive ?: tr("Non renseigné")), style = MaterialTheme.typography.bodySmall)
+                }
+                val status = when (prerequisites.status) {
+                    SdkPrerequisiteStatus.NOT_DECLARED -> tr("Aucune contrainte SDK déclarée")
+                    SdkPrerequisiteStatus.COMPATIBLE -> tr("Compatible avec ce SDK")
+                    SdkPrerequisiteStatus.MISSING -> tr("SDK manquant")
+                    SdkPrerequisiteStatus.INCOMPATIBLE -> tr("SDK incompatible")
+                    SdkPrerequisiteStatus.NOT_READY -> tr("SDK local à préparer")
+                    SdkPrerequisiteStatus.UNVERIFIABLE -> tr("Prérequis SDK non vérifiables")
+                }
+                Text(status, color = if (prerequisites.status == SdkPrerequisiteStatus.COMPATIBLE) Color(0xFF267249)
+                    else if (prerequisites.status in listOf(SdkPrerequisiteStatus.MISSING, SdkPrerequisiteStatus.INCOMPATIBLE, SdkPrerequisiteStatus.NOT_READY)) MaterialTheme.colorScheme.error else muted,
+                    style = MaterialTheme.typography.labelLarge)
+            }
+            Text(tr("SDK prévu pour le profil {0} : {1}", if (state.settings.developing) HubProfile.DEVELOP.label else HubProfile.PLAY.label,
+                prerequisites.selectedVersion ?: tr("Non installé")), style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(openSdk) { Text(tr("Aller au SDK")) }
+        }
+    }
+}
+
+@Composable
 private fun SdkPage(state: HubState, actions: HubActions) {
     val s = state.settings
-    val sdk = state.visibleProjects.firstOrNull { it.id == "sdk" } ?: Project("sdk", "sdk", "0.0.0", "NimbyRails France SDK")
+    // The right pane installs the published SDK, even when a local source is
+    // selected for development. Keep its identity and badge tied to that source.
+    val publishedState = state.copy(settings = s.copy(profile = HubProfile.PLAY))
+    val sdk = publishedState.visibleProjects.firstOrNull { it.id == "sdk" } ?: Project("sdk", "sdk", "0.0.0", "NimbyRails France SDK")
     Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             SectionTitle(tr("SDK du jeu"))
@@ -311,6 +386,7 @@ private fun SdkPage(state: HubState, actions: HubActions) {
                 val source = s.development.projects["sdk"]
                 val build = s.development.builds["sdk"]
                 if (source != null) {
+                    ProjectHeading(source.project)
                     Text(source.directory, style = MaterialTheme.typography.bodySmall)
                     InfoLine(tr("Dernière lecture des sources"), source.project.version)
                     InfoLine(tr("Construction"), build?.displayStatus ?: tr("À compiler"))
@@ -338,7 +414,7 @@ private fun SdkPage(state: HubState, actions: HubActions) {
                 Text(tr("Le kit Kotlin contient sdk.json et les bibliothèques de compilation. Sa version sera vérifiée avec celle du SDK choisi pour le jeu."), color = muted, style = MaterialTheme.typography.bodySmall)
             } else OutlinedButton(actions.refresh, enabled = !state.busy) { Text(tr("Actualiser le catalogue")) }
         }
-        ProjectDetail(sdk, state.copy(settings = s.copy(profile = HubProfile.PLAY)), actions, Modifier.width(330.dp).fillMaxHeight())
+        ProjectDetail(sdk, publishedState, actions, Modifier.width(330.dp).fillMaxHeight())
     }
 }
 
@@ -387,7 +463,7 @@ private fun SettingsPage(state: HubState, actions: HubActions) {
             }
             Switch(s.automatic, actions.automatic, enabled = !state.busy)
         }
-        Row(verticalAlignment = Alignment.CenterVertically) { Text(tr("Canal du Hub"), Modifier.weight(1f)); ChannelSelector(s.selectedChannel("hub"), !state.busy) { actions.channel("hub", it) } }
+        Row(verticalAlignment = Alignment.CenterVertically) { Text(tr("Canal du Hub"), Modifier.weight(1f)); ChannelSelector("NRF Hub", s.selectedChannel("hub"), !state.busy) { actions.channel("hub", it) } }
         HorizontalDivider()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -427,7 +503,12 @@ private fun ActivityPage(state: HubState, actions: HubActions) {
             OutlinedButton(actions.exportLogs, enabled = !state.busy) { Text(tr("Exporter les logs NRF")) }
         }
         if (state.logFile.isNotBlank()) SelectionContainer { Text(state.logFile, style = MaterialTheme.typography.bodySmall) }
-        SelectionContainer {
+        if (state.log.isEmpty()) Surface(Modifier.fillMaxWidth(), color = Color.White, shape = RoundedCornerShape(6.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(tr("Aucun événement pour cette session"), style = MaterialTheme.typography.titleSmall)
+                Text(tr("Les opérations et diagnostics du Hub apparaîtront ici. Les journaux des sessions précédentes restent accessibles dans le dossier des journaux ou dans l’export NRF."), color = muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        } else SelectionContainer {
             LazyColumn(Modifier.fillMaxSize().background(Color.White, RoundedCornerShape(6.dp)).padding(16.dp), reverseLayout = true) {
                 items(state.log.asReversed()) { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 3.dp)) }
             }
@@ -451,13 +532,23 @@ private fun ActivityPage(state: HubState, actions: HubActions) {
         }
     }
 }
-@Composable private fun ChannelSelector(selected: String, enabled: Boolean, change: (String) -> Unit) {
+@Composable private fun ChannelSelector(projectName: String, selected: String, enabled: Boolean, change: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val labels = mapOf("stable" to "Stable", "beta" to tr("Bêta"), "alpha" to "Alpha")
+    val description = tr("Modifier le canal de {0}", projectName)
+    LaunchedEffect(enabled) { if (!enabled) expanded = false }
     Box {
-        TextButton({ expanded = true }, enabled = enabled) { Text(labels[selected] ?: "Stable") }
+        OutlinedButton({ expanded = true }, enabled = enabled, modifier = Modifier.semantics { contentDescription = description }) {
+            Text(tr("Canal : {0}", labels[selected] ?: "Stable"))
+            Spacer(Modifier.width(10.dp))
+            val color = LocalContentColor.current
+            Canvas(Modifier.size(16.dp)) {
+                drawLine(color, Offset(size.width * .2f, size.height * .35f), Offset(size.width * .5f, size.height * .65f), 2.dp.toPx(), StrokeCap.Round)
+                drawLine(color, Offset(size.width * .5f, size.height * .65f), Offset(size.width * .8f, size.height * .35f), 2.dp.toPx(), StrokeCap.Round)
+            }
+        }
         DropdownMenu(expanded, { expanded = false }) {
-            labels.forEach { (channel, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { expanded = false; change(channel) }) }
+            labels.forEach { (channel, label) -> DropdownMenuItem(text = { Text(label) }, enabled = enabled, onClick = { expanded = false; change(channel) }) }
         }
     }
 }

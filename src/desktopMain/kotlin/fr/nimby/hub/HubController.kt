@@ -229,7 +229,8 @@ class HubController(
             val ticket = policy.generation
             update { it.copy(busy = true) }
             try {
-                val catalogue = try { source.catalogue(state.value.settings.channels) }
+                val settings = state.value.settings
+                val catalogue = try { source.catalogue(settings.channels.mapValues { (id, _) -> settings.selectedChannel(id) }) }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
                     update { it.copy(availableProjects = emptySet()) }
@@ -507,6 +508,29 @@ class HubController(
             origins = s.development.origins + (local.project.id to ModOrigin.LOCAL),
             builds = s.development.builds + (local.project.id to BuildResult(status = if (local.task.isBlank()) "Paquet à importer" else "À compiler")))))
         log(message("{0} · projet local ajouté", local.project.name))
+    }
+
+    fun createProject(request: NewProjectRequest, onCreated: (LocalProject) -> Unit = {}) = work(message("Création du projet…")) {
+        val snapshot = state.value.settings
+        require(snapshot.developing) { tr("Sélectionnez Développer pour créer un projet") }
+        val known = snapshot.development.projects.keys + snapshot.development.prepared.keys +
+            snapshot.installed.keys + state.value.projects.map { it.id }
+        require(request.id !in known) { tr("Cet identifiant de projet est déjà utilisé : {0}", request.id) }
+        require(snapshot.paths.localMods.isNotBlank()) { tr("Choisissez le dossier des projets locaux dans Paramètres") }
+        require(snapshot.paths.kotlinSdk.isNotBlank()) { tr("Choisissez un kit SDK Kotlin dans Paramètres") }
+        val local = withContext(Dispatchers.IO) {
+            ProjectGenerator.create(Path(snapshot.paths.localMods), Path(snapshot.paths.kotlinSdk), request)
+        }
+        // Creating sources does not compile or activate code in the running game.
+        // Keep the path in the journal even if persisting the profile then fails.
+        log(message("Sources créées : {0}", local.directory))
+        val current = state.value.settings
+        settings(current.copy(development = current.development.copy(
+            projects = current.development.projects + (local.project.id to local),
+            origins = current.development.origins + (local.project.id to ModOrigin.LOCAL),
+            builds = current.development.builds + (local.project.id to BuildResult()))))
+        log(message("{0} · projet créé, prêt à compiler", local.project.name))
+        onCreated(local)
     }
 
     fun forgetLocalProject(id: String) {

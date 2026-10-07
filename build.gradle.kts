@@ -48,6 +48,21 @@ kotlin {
     }
 }
 
+// Source templates use the same reviewed wrapper shipped with the Hub repository.
+// Keep the JAR and scripts in one place; resources make generation independent of
+// the user's checkout or Gradle installation. The generated distribution URL is
+// chosen from the selected SDK kit's metadata at project creation time.
+val prepareProjectTemplateResources by tasks.registering(Sync::class) {
+    from(layout.projectDirectory) {
+        include("gradlew", "gradlew.bat", "gradle/wrapper/gradle-wrapper.jar")
+        into("project-template")
+    }
+    into(layout.buildDirectory.dir("generated/project-template-resources"))
+}
+kotlin.sourceSets.named("desktopMain") {
+    resources.srcDir(prepareProjectTemplateResources)
+}
+
 compose.desktop {
     application {
         mainClass = "fr.nimby.hub.MainKt"

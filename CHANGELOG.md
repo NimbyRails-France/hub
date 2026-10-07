@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.4.2-alpha.2] - 2026-10-08
+
+### Français
+
+- Facilite le choix du canal Stable, Bêta ou Alpha avec un bouton clairement visible dans les réglages du Hub et les fiches des projets.
+- Regroupe le suivi des opérations et l'export des diagnostics dans la page Journaux, qui remplace Téléchargements.
+- Affiche les versions du SDK requises et la compatibilité de chaque mise à jour dans Jouer et Développer, avec un accès direct à la page SDK.
+- Permet de créer un projet de signal ou d'outil en jeu depuis Développer, avec un formulaire guidé et une documentation en français et en anglais pour commencer, compiler et ouvrir le projet dans l'IDE.
+- Rend l'annulation des compilations locales plus fiable et améliore la réactivité du Hub lors des vérifications sous Windows.
+- Met à jour la vérification et la réparation des installations pour prendre en charge le SDK 0.9.
+- Accompagne les nouveaux noms AB Signalisation lumineuse, BA Signal Placement et BB Timechange en conservant le suivi des installations existantes. Des étiquettes En cours de développement ou Stable indiquent désormais le statut déclaré par chaque projet, indépendamment de son canal.
+
+### English
+
+- Makes Stable, Beta and Alpha easier to select with a clearly visible button in Hub settings and project details.
+- Brings operation tracking and diagnostic exports together on the Logs page, replacing Downloads.
+- Shows the required SDK versions and compatibility of each update in Play and Develop, with direct access to the SDK page.
+- Lets you create a signal or in-game tool project from Develop, with a guided form and French/English documentation to get started, build and open the project in the IDE.
+- Makes local build cancellation more reliable and improves Hub responsiveness during Windows checks.
+- Updates installation verification and repair to support SDK 0.9.
+- Supports the new names AB Signalisation lumineuse, BA Signal Placement and BB Timechange while keeping track of existing installations. In development and Stable labels now show each project's declared status, independently of its release channel.
+
 ## [0.4.2-alpha.1] - 2026-09-28
 
 - Remplace la publication 0.4.1-alpha.10 avec une nouvelle version pour éviter son classement derrière alpha.9 sur GitHub.

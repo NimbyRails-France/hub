@@ -15,8 +15,9 @@ import re
 import shutil
 import tempfile
 
+from project_identities import PROJECTS, project_id
+
 ORIGIN = 'https://releases.nimbyrails-france.fr'
-PROJECTS = {'hub', 'sdk', 'tco', 'signalisationfrancaiserealiste', 'signal-placement', 'time-change'}
 VERSION = re.compile(r'\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?')
 NAME = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,180}')
 
@@ -132,11 +133,18 @@ def publish(root, repo, version, source, assets, notes, published_at=None):
                 shutil.rmtree(work)
 
 
+def publish_plan(root, repository, plan, source):
+    # Repository names may change; public paths and catalogue IDs cannot.
+    project = project_id(repository)
+    expected_channel = plan['version'].split('-')[1].split('.')[0] if '-' in plan['version'] else 'stable'
+    if plan['channel'] != expected_channel:
+        raise ValueError('Release channel differs from version')
+    publish(root, project, plan['version'], source, plan['assets'], plan['notes'])
+
+
 if __name__ == '__main__':
     plan = json.loads(Path('.release-plan.json').read_text())
     if not plan['publish']:
         print('No release requested: server publication skipped.')
     else:
-        repo = os.environ['CI_REPO'].split('/')[-1]
-        assert plan['channel'] == (plan['version'].split('-')[1].split('.')[0] if '-' in plan['version'] else 'stable')
-        publish('/distribution', repo, plan['version'], 'dist/release', plan['assets'], plan['notes'])
+        publish_plan('/distribution', os.environ['CI_REPO'], plan, 'dist/release')
