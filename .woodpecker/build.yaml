@@ -12,13 +12,12 @@ steps:
       - python3 .woodpecker/test-github-release.py
       - sh .woodpecker/build.sh
   - name: publish-github-release
-    image: python:3.12-alpine
-    environment:
-      NRF_RELEASE_TOKEN:
+    image: univenanne-ci-nimby-publisher:20260918
+    settings:
+      token:
         from_secret: nrf_release_token
-    commands:
-      - "case $CI_COMMIT_MESSAGE in *\"Release-Runner: github\"*) echo GitHub runner selected; exit 0 ;; esac"
-      - python .woodpecker/github-release.py
+    when:
+      - evaluate: 'not (CI_COMMIT_MESSAGE contains "Release-Runner: github")'
   - name: publish-distribution-server
     image: python:3.12-alpine
     volumes:
