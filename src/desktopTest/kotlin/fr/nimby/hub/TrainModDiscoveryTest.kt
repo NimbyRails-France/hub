@@ -31,7 +31,8 @@ class TrainModDiscoveryTest {
 
     private fun project() = Project(id, "native-mod", "0.1.0", name = "BC Train super long",
         url = DistributionLocation.page(id, "0.1.0") + filename, size = 42, sha256 = hash,
-        rootFolder = "BC-Train-super-long-0.1.0", modId = id, module = "$id-mod.dll", loaderApi = 1,
+        // The synthetic release targets the test host, including its native library format.
+        rootFolder = "BC-Train-super-long-0.1.0", modId = id, module = "$id-mod.${Host.moduleExtension}", loaderApi = 1,
         platform = Host.id, gameSha256 = listOf(hash), sdkMin = "0.9.0-alpha.3", sdkMaxExclusive = "0.10.0",
         developmentStatus = "in-development")
 
@@ -57,6 +58,9 @@ class TrainModDiscoveryTest {
         assertEquals("0.1.0", value.version)
         assertEquals("stable", value.channel)
         assertEquals("in-development", value.developmentStatus)
+        assertEquals(Host.id, value.platform)
+        assertEquals("$id-mod.${Host.moduleExtension}", value.module)
+        assertEquals(1, value.loaderApi)
         assertEquals("0.9.0-alpha.3", value.sdkMin)
         assertEquals("0.10.0", value.sdkMaxExclusive)
         assertEquals("Train composition length limit.", value.changelog)
