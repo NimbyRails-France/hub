@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 val hubJson = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
-const val HUB_VERSION = "0.4.2-alpha.2"
+const val HUB_VERSION = "0.4.2-alpha.3"
 
 @Serializable
 data class Project(

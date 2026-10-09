@@ -115,7 +115,8 @@ fun HubScreen(state: HubState, actions: HubActions, logo: Painter? = null) {
                 if (state.settings.profile != state.settings.appliedProfile || state.settings.disableDeveloperAfterApply) {
                     Row(Modifier.fillMaxWidth().background(Color(0xFFFFF1D6)).padding(horizontal = 26.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text(tr("{0} en attente · fermeture du jeu nécessaire avant la bascule", state.settings.profile.label), modifier = Modifier.weight(1f),
+                        Text(if (state.gameRunning) tr("{0} en attente · fermeture du jeu nécessaire avant la bascule", state.settings.profile.label)
+                            else tr("{0} en attente · appliquez le profil pour l’activer", state.settings.profile.label), modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall)
                         TextButton(actions.applyProfile, enabled = !state.busy && !state.gameRunning) { Text(tr("Appliquer")) }
                     }
@@ -288,10 +289,27 @@ private fun ProjectDetail(project: Project, state: HubState, actions: HubActions
                 ChannelSelector(project.name, s.selectedChannel(project.id), !state.busy) { actions.channel(project.id, it) }
             }
             if (project.kind != "sdk") SdkPrerequisitesCard(project, state, openSdk)
-            Button({ actions.install(project) }, enabled = !state.busy && state.windows && !state.checkingGame &&
-                installationReason == null &&
-                project.id in state.availableProjects && s.appliedProfile == HubProfile.PLAY && !s.legacyProtection,
-                modifier = Modifier.fillMaxWidth()) { Text(if (installed == null) tr("Installer") else tr("Mettre à jour")) }
+            // An installed fallback is not a verified catalogue candidate. Only
+            // compare verified versions, and keep channel downgrades explicit.
+            val available = project.id in state.availableProjects
+            val versionOrder = if (available && installed != null)
+                runCatching { Versions.compare(project.version, installed.version) }.getOrNull() else null
+            val canInstall = !state.busy && state.windows && !state.checkingGame && installationReason == null &&
+                available && s.appliedProfile == HubProfile.PLAY && !s.legacyProtection
+            if (versionOrder == 0) {
+                Text(tr("À jour"), color = muted, style = MaterialTheme.typography.bodyMedium)
+                // Repairing the loader can require reinstalling the same SDK.
+                if (project.kind == "sdk") OutlinedButton({ actions.install(project) }, enabled = canInstall,
+                    modifier = Modifier.fillMaxWidth()) { Text(tr("Réinstaller le SDK")) }
+            } else {
+                Button({ actions.install(project) }, enabled = canInstall, modifier = Modifier.fillMaxWidth()) {
+                    Text(when {
+                        installed == null -> tr("Installer")
+                        versionOrder != null && versionOrder > 0 -> tr("Mettre à jour")
+                        else -> tr("Installer cette version")
+                    })
+                }
+            }
             if (s.appliedProfile != HubProfile.PLAY) Text(tr("Revenez à Jouer pour modifier l’installation habituelle."), color = muted, style = MaterialTheme.typography.bodySmall)
             installed?.let {
                 OutlinedButton({ actions.rollback(project) }, enabled = !state.busy && s.appliedProfile == HubProfile.PLAY, modifier = Modifier.fillMaxWidth()) { Text(tr("Restaurer la version précédente")) }

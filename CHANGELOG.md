@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.4.2-alpha.3] - 2026-10-09
+
+### Français
+
+- Affiche « À jour » lorsqu'un projet dispose déjà de la version proposée, sans présenter de bouton de mise à jour inutile.
+- Corrige le message de changement de profil lorsque le jeu est fermé : le Hub invite désormais à appliquer le profil sélectionné.
+- Distingue l'installation d'une version antérieure d'une mise à jour lors d'un changement de canal.
+- Ajoute une action dédiée pour réinstaller la version actuelle du SDK si nécessaire.
+
+### English
+
+- Shows “Up to date” when a project already has the offered version installed, without displaying an unnecessary update button.
+- Corrects the profile change message when the game is closed: the Hub now prompts you to apply the selected profile.
+- Distinguishes installing an earlier version from updating when switching channels.
+- Adds a dedicated action to reinstall the current SDK version when needed.
+
 ## [0.4.2-alpha.2] - 2026-10-08
 
 ### Français
