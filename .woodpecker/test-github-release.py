@@ -230,7 +230,7 @@ class ModPackaging(unittest.TestCase):
         for project, current in identities.REPOSITORIES.items():
             if project in ('hub', 'sdk', 'tco'):
                 continue
-            for slug in (project, current):
+            for slug in {project, current}:
                 with self.subTest(repository=slug):
                     root, original = self.fixture(slug, project)
                     self.package(root, 'NimbyRails-France/' + slug)

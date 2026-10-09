@@ -4,6 +4,22 @@ import fr.nimby.hub.model.*
 import kotlin.test.*
 
 class DistributionTest {
+    @Test fun trainLengthModHasOneIdentityAcrossOfficialDistributionLocations() {
+        val id = "bc-train-super-long"
+        val asset = "BC-Train-super-long-0.1.0-windows-x64.zip"
+        val github = "https://github.com/NimbyRails-France/$id/releases/download/v0.1.0/$asset"
+        val server = "${DistributionLocation.origin}/releases/$id/v0.1.0/$asset"
+        assertTrue(id in DistributionLocation.projects)
+        assertEquals(id, DistributionLocation.githubRepository(id))
+        assertEquals(id, DistributionLocation.projectForRepository(id))
+        assertEquals("https://github.com/NimbyRails-France/$id/releases/download/catalogue/releases.json",
+            DistributionLocation.githubCatalogue(id))
+        assertEquals(github, DistributionLocation.githubMirror(server))
+        assertEquals(server, DistributionLocation.serverMirror(github))
+        assertTrue(ReleaseSelection.officialAsset(github, id, "v0.1.0"))
+        assertFalse(ReleaseSelection.officialAsset(github, "time-change", "v0.1.0"))
+    }
+
     @Test fun renamedRepositoriesPreserveDistributionIdsAndAssetIdentity() {
         val renamed = mapOf("signalisationfrancaiserealiste" to "ab-signalisation-lumineuse",
             "signal-placement" to "ba-signal-placement", "time-change" to "bb-timechange")

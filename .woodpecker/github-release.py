@@ -23,6 +23,7 @@ PROJECT_NAMES = {
     'signalisationfrancaiserealiste': 'AB Signalisation lumineuse',
     'signal-placement': 'BA Signal Placement',
     'time-change': 'BB Timechange',
+    'bc-train-super-long': 'BC Train super long',
 }
 PROJECTS = set(PROJECT_NAMES)
 VERSION = re.compile(r'(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})\.(?:0|[1-9][0-9]{0,3})(?:-(?:alpha|beta)\.[1-9][0-9]{0,8})?')

@@ -12,6 +12,7 @@ REPOSITORIES = {
     'signalisationfrancaiserealiste': 'ab-signalisation-lumineuse',
     'signal-placement': 'ba-signal-placement',
     'time-change': 'bb-timechange',
+    'bc-train-super-long': 'bc-train-super-long',
 }
 PROJECTS = frozenset(REPOSITORIES)
 _PROJECT_BY_REPOSITORY = {

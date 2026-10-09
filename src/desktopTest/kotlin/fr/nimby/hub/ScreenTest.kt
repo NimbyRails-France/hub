@@ -16,6 +16,44 @@ class ScreenTest {
     @org.junit.After fun resetLanguage() { fr.nimby.hub.i18n.I18n.configure("auto", "fr") }
     @get:Rule val compose = createComposeRule()
 
+    @Test fun readyHubUpdateCanRestartInBothProfilesWithDevelopmentEnabled() {
+        var state by mutableStateOf(HubState(HubSettings(gameDirectory = "C:/Game", developerMode = true),
+            gameHash = "a".repeat(64), gameRunning = true, readyHubVersion = "0.4.2-alpha.4"))
+        var restarts = 0
+        compose.setContent { HubScreen(state, HubActions(restart = { restarts++ })) }
+        compose.onNodeWithText("Journaux", useUnmergedTree = true).performClick()
+        val button = compose.onNodeWithText("Redémarrer le Hub pour appliquer 0.4.2-alpha.4")
+        for (profile in HubProfile.entries) {
+            compose.runOnIdle { state = state.copy(settings = state.settings.copy(profile = profile,
+                appliedProfile = profile, automatic = false)) }
+            button.assertIsEnabled().performClick()
+        }
+        compose.runOnIdle { state = state.copy(settings = state.settings.copy(developerMode = false,
+            profile = HubProfile.PLAY, appliedProfile = HubProfile.PLAY)) }
+        button.assertIsEnabled().performClick()
+        org.junit.Assert.assertEquals(3, restarts)
+    }
+
+    @Test fun readyHubUpdateWaitsForOperationsAndDisappearsWithoutAPreparedVersion() {
+        var state by mutableStateOf(HubState(HubSettings(gameDirectory = "C:/Game", developerMode = true),
+            gameHash = "a".repeat(64), readyHubVersion = "0.4.2-alpha.4"))
+        var restarts = 0
+        compose.setContent { HubScreen(state, HubActions(restart = { restarts++ })) }
+        compose.onNodeWithText("Journaux", useUnmergedTree = true).performClick()
+        val button = compose.onNodeWithText("Redémarrer le Hub pour appliquer 0.4.2-alpha.4")
+        compose.runOnIdle { state = state.copy(busy = true) }
+        button.assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(busy = false, installing = true) }
+        button.assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(installing = false, building = true) }
+        button.assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(building = false) }
+        button.assertIsEnabled().performClick()
+        org.junit.Assert.assertEquals(1, restarts)
+        compose.runOnIdle { state = state.copy(readyHubVersion = null) }
+        button.assertDoesNotExist()
+    }
+
     @Test fun projectStatusIsVisibleInBothProfilesAndIndependentOfTheReleaseChannel() {
         val development = Project("signals", "native-mod", "1.0.0", "AB Signalisation lumineuse",
             developmentStatus = "in-development")

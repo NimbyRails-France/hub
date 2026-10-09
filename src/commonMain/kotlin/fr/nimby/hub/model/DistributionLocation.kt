@@ -4,7 +4,9 @@ package fr.nimby.hub.model
 object DistributionLocation {
     const val origin = "https://releases.nimbyrails-france.fr"
     const val catalogue = "$origin/v1/catalog.json"
-    val projects = setOf("sdk", "hub", "tco", "signalisationfrancaiserealiste", "signal-placement", "time-change")
+    // Discover official mods even before the profile has an installed record or
+    // a channel preference, including when the NRF catalogue needs GitHub fallback.
+    val projects = setOf("sdk", "hub", "tco", "signalisationfrancaiserealiste", "signal-placement", "time-change", "bc-train-super-long")
     // Source repositories may be renamed; manifests, installed IDs and NRF paths stay stable.
     private val repositories = mapOf(
         "signalisationfrancaiserealiste" to "ab-signalisation-lumineuse",

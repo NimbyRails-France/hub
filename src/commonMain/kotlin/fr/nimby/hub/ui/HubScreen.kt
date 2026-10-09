@@ -513,7 +513,9 @@ private fun ActivityPage(state: HubState, actions: HubActions) {
         SectionTitle(if (state.busy) tr("Opération en cours") else tr("Aucune opération en cours"))
         Text(state.status, color = muted)
         Text(state.relayStatus, color = muted, style = MaterialTheme.typography.bodySmall)
-        state.readyHubVersion?.let { version -> OutlinedButton(actions.restart, enabled = !state.busy && !state.settings.developerMode) { Text(tr("Redémarrer le Hub pour appliquer {0}", version)) } }
+        // A Hub update is independent of the game profile and development mode.
+        // Wait for active operations before closing the process for installation.
+        state.readyHubVersion?.let { version -> OutlinedButton(actions.restart, enabled = !state.busy && !state.installing && !state.building) { Text(tr("Redémarrer le Hub pour appliquer {0}", version)) } }
         HorizontalDivider()
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             SectionTitle(tr("Journal"))

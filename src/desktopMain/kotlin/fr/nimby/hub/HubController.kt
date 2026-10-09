@@ -351,9 +351,22 @@ class HubController(
     }
     fun quit(relaunch: Boolean = false): Boolean {
         if (state.value.installing || operation?.isActive == true) { log(message("Attendez la fin de l'opération avant de quitter.")); return false }
+        try {
+            // Automatic installation is a preference; applying an already
+            // prepared update explicitly is allowed in either Hub profile.
+            val launched = updater.installOnExit(policy.canUpdateHub || relaunch, relaunch)
+            update { it.copy(readyHubVersion = updater.version) }
+            if (relaunch && !launched) {
+                fail(tr("Aucune mise à jour du Hub prête à installer."))
+                return false
+            }
+        } catch (failure: Exception) {
+            update { it.copy(readyHubVersion = updater.version) }
+            fail(IllegalStateException(tr("Mise à jour du Hub impossible : {0}", failure.message), failure))
+            return false
+        }
+        // A failed installer leaves the Hub open, including its live updates.
         stopNetwork()
-        try { updater.installOnExit(policy.canUpdateHub, relaunch) }
-        catch (failure: Exception) { log(message("Mise à jour du Hub impossible : {0}", failure.message), failure); return false }
         return true
     }
     fun close() { log(message("Fermeture du Hub")); stopNetwork(); gameMonitor?.cancel(); operation?.cancel() }

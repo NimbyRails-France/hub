@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.4.2-alpha.4] - 2026-10-09
+
+### Français
+
+- Ajoute **BC Train super long** au catalogue des mods, avec son statut de développement et la version du SDK requise.
+- Conserve l’accès aux versions de ce mod lorsque le serveur de téléchargement est indisponible ou que son catalogue n’est pas encore à jour.
+- Corrige le bouton de redémarrage pour appliquer une mise à jour prête dans Jouer et Développer, même si les mises à jour automatiques sont désactivées.
+- Affiche les erreurs d’installation d’une mise à jour du Hub et permet de réessayer sans fermer l’application.
+
+### English
+
+- Adds **BC Train super long** to the mod catalogue, showing its development status and required SDK version.
+- Keeps this mod’s releases available when the download server is unavailable or its catalogue has not yet been updated.
+- Fixes the restart button so a prepared Hub update can be applied in Play and Develop, even when automatic updates are disabled.
+- Displays Hub update installation errors and lets players retry without closing the application.
+
 ## [0.4.2-alpha.3] - 2026-10-09
 
 ### Français

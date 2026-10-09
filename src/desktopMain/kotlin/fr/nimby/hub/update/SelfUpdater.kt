@@ -34,23 +34,35 @@ class SelfUpdater(
         if (allowed()) ready = release to path else path.deleteIfExists()
     }
 
-    fun installOnExit(allowed: Boolean, relaunch: Boolean) {
-        if (!allowed) return
-        val executable = installedExecutable ?: return
-        val (release, path) = ready ?: return
-        require(path.fileSize() == release.size && path.sha256().equals(release.sha256, true)) { tr("Installateur Hub modifié") }
+    /** True only when an installer was launched; a prepared update is consumed once. */
+    fun installOnExit(allowed: Boolean, relaunch: Boolean): Boolean {
+        if (!allowed) return false
+        val (release, path) = ready ?: return false
+        val executable = requireNotNull(installedExecutable) {
+            tr("La mise à jour du Hub nécessite l’exécutable NRFHub installé.")
+        }
+        try {
+            require(path.isRegularFile() && path.fileSize() == release.size && path.sha256().equals(release.sha256, true)) {
+                tr("Installateur Hub absent ou modifié")
+            }
+        } catch (failure: Exception) {
+            // A removed or corrupt download must not stay advertised as ready.
+            // A later check can download a fresh, verified installer.
+            ready = null
+            throw failure
+        }
         if (!Host.windows) {
             // Native package managers own elevation and replacement of installed files.
             // Opening the verified installer lets the desktop ask for any required credentials.
             launchInstaller(listOf(if (Host.mac) "open" else "xdg-open", path.toString()))
-            return
-        }
-        if (release.installer == "jpackage-exe") {
+        } else if (release.installer == "jpackage-exe") {
             launchInstaller(listOf(path.toString()))
-            return
+        } else {
+            val command = mutableListOf(path.toString(), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=${executable.parent}")
+            if (relaunch) command += "/RELAUNCH"
+            launchInstaller(command)
         }
-        val command = mutableListOf(path.toString(), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=${executable.parent}")
-        if (relaunch) command += "/RELAUNCH"
-        launchInstaller(command)
+        ready = null
+        return true
     }
 }

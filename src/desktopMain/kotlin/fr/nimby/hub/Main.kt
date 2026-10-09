@@ -41,7 +41,8 @@ fun main(args: Array<String>) {
             val channel = args.getOrNull(1) ?: "stable"
             require(channel in listOf("stable", "beta", "alpha")) { tr("Canal inconnu") }
             val source = ResilientReleases(report = ::println)
-            val projects = listOf("sdk", "tco", "signalisationfrancaiserealiste")
+            val projects = DistributionLocation.projects.filter { it != "hub" }
+                .sortedWith(compareBy<String> { it != "sdk" }.thenBy { it })
             val catalogue = source.catalogue(projects.associateWith { channel })
             println(tr("Catalogue NRF : {0} projets valides, {1} indisponibles", catalogue.projects.size, catalogue.errors.size))
             catalogue.errors.forEach { (id, error) -> println("$id : $error") }
@@ -100,8 +101,15 @@ fun main(args: Array<String>) {
             else { previousPlacement = windowState.placement; windowState.placement = WindowPlacement.Fullscreen }
         }
         fun quit(relaunch: Boolean = false) {
-            if (controller.quit(relaunch)) {
+            // Finish settings writes before starting the installer, so a save
+            // failure cannot leave the old Hub running during replacement.
+            try {
                 controller.saveWindow(windowState.size.width.value.toInt(), windowState.size.height.value.toInt())
+            } catch (failure: Exception) {
+                controller.fail(tr("Impossible d’enregistrer les réglages du Hub : {0}", failure.message))
+                return
+            }
+            if (controller.quit(relaunch)) {
                 exitApplication()
             }
         }
